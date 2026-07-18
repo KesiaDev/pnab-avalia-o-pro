@@ -14,16 +14,422 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audit_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          after: Json | null
+          before: Json | null
+          created_at: string
+          id: string
+          reason: string | null
+          row_id: string
+          table_name: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          row_id: string
+          table_name: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          row_id?: string
+          table_name?: string
+        }
+        Relationships: []
+      }
+      criterion_scores: {
+        Row: {
+          applied_band: string | null
+          approved_score: number | null
+          criterion: string
+          human_review_required: boolean
+          id: string
+          justification: string | null
+          max_score: number
+          proponent_id: string
+          proposed_score: number | null
+          updated_at: string
+        }
+        Insert: {
+          applied_band?: string | null
+          approved_score?: number | null
+          criterion: string
+          human_review_required?: boolean
+          id?: string
+          justification?: string | null
+          max_score: number
+          proponent_id: string
+          proposed_score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          applied_band?: string | null
+          approved_score?: number | null
+          criterion?: string
+          human_review_required?: boolean
+          id?: string
+          justification?: string | null
+          max_score?: number
+          proponent_id?: string
+          proposed_score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "criterion_scores_proponent_id_fkey"
+            columns: ["proponent_id"]
+            isOneToOne: false
+            referencedRelation: "proponents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evaluations: {
+        Row: {
+          bonus_subtotal: number
+          export_ready: boolean
+          id: string
+          individual_total: number
+          mandatory_subtotal: number
+          proponent_id: string
+          status: string
+          updated_at: string
+          zero_in_mandatory_criterion: boolean
+        }
+        Insert: {
+          bonus_subtotal?: number
+          export_ready?: boolean
+          id?: string
+          individual_total?: number
+          mandatory_subtotal?: number
+          proponent_id: string
+          status?: string
+          updated_at?: string
+          zero_in_mandatory_criterion?: boolean
+        }
+        Update: {
+          bonus_subtotal?: number
+          export_ready?: boolean
+          id?: string
+          individual_total?: number
+          mandatory_subtotal?: number
+          proponent_id?: string
+          status?: string
+          updated_at?: string
+          zero_in_mandatory_criterion?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluations_proponent_id_fkey"
+            columns: ["proponent_id"]
+            isOneToOne: true
+            referencedRelation: "proponents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      file_versions: {
+        Row: {
+          created_at: string
+          file_id: string
+          id: string
+          minimizado: boolean
+          sha256: string | null
+          storage_path: string
+          tamanho_kb: number | null
+          versao: number
+        }
+        Insert: {
+          created_at?: string
+          file_id: string
+          id?: string
+          minimizado?: boolean
+          sha256?: string | null
+          storage_path: string
+          tamanho_kb?: number | null
+          versao?: number
+        }
+        Update: {
+          created_at?: string
+          file_id?: string
+          id?: string
+          minimizado?: boolean
+          sha256?: string | null
+          storage_path?: string
+          tamanho_kb?: number | null
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_versions_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      files: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          mime_type: string | null
+          nome: string
+          proponent_id: string
+          storage_path: string
+          tipo_documental: Database["public"]["Enums"]["document_type"]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mime_type?: string | null
+          nome: string
+          proponent_id: string
+          storage_path: string
+          tipo_documental?: Database["public"]["Enums"]["document_type"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mime_type?: string | null
+          nome?: string
+          proponent_id?: string
+          storage_path?: string
+          tipo_documental?: Database["public"]["Enums"]["document_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "files_proponent_id_fkey"
+            columns: ["proponent_id"]
+            isOneToOne: false
+            referencedRelation: "proponents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      proponent_aliases: {
+        Row: {
+          alias: string
+          created_at: string
+          id: string
+          origem: string
+          proponent_id: string
+        }
+        Insert: {
+          alias: string
+          created_at?: string
+          id?: string
+          origem: string
+          proponent_id: string
+        }
+        Update: {
+          alias?: string
+          created_at?: string
+          id?: string
+          origem?: string
+          proponent_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proponent_aliases_proponent_id_fkey"
+            columns: ["proponent_id"]
+            isOneToOne: false
+            referencedRelation: "proponents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proponents: {
+        Row: {
+          atualizado_em: string
+          categoria: string | null
+          ciclo1_alerta: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          nome_canonico: string
+          status: Database["public"]["Enums"]["proponent_status"]
+        }
+        Insert: {
+          atualizado_em?: string
+          categoria?: string | null
+          ciclo1_alerta?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome_canonico: string
+          status?: Database["public"]["Enums"]["proponent_status"]
+        }
+        Update: {
+          atualizado_em?: string
+          categoria?: string | null
+          ciclo1_alerta?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome_canonico?: string
+          status?: Database["public"]["Enums"]["proponent_status"]
+        }
+        Relationships: []
+      }
+      reference_document_versions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data: string
+          hash: string
+          id: string
+          reference_document_id: string
+          status: Database["public"]["Enums"]["normative_status"]
+          storage_path: string | null
+          versao: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data: string
+          hash: string
+          id?: string
+          reference_document_id: string
+          status?: Database["public"]["Enums"]["normative_status"]
+          storage_path?: string | null
+          versao: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          hash?: string
+          id?: string
+          reference_document_id?: string
+          status?: Database["public"]["Enums"]["normative_status"]
+          storage_path?: string | null
+          versao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reference_document_versions_reference_document_id_fkey"
+            columns: ["reference_document_id"]
+            isOneToOne: false
+            referencedRelation: "reference_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reference_documents: {
+        Row: {
+          created_at: string
+          id: string
+          titulo: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          titulo: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          titulo?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role:
+        | "administradora"
+        | "agente_merito"
+        | "agente_administrativo"
+        | "auditor"
+      document_type:
+        | "formulario"
+        | "identidade"
+        | "portfolio"
+        | "comprobatorio"
+        | "grp"
+        | "zimbra"
+        | "outro"
+      normative_status: "vigente" | "arquivado"
+      proponent_status:
+        | "nao_importado"
+        | "importado"
+        | "inventariado"
+        | "em_analise"
+        | "avaliacao_proposta"
+        | "auditoria_concluida"
+        | "pendencia_humana"
+        | "aprovado_pela_avaliadora"
+        | "bloqueado"
+        | "reaberto"
+        | "finalizado"
+        | "pendencia_administrativa"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +556,37 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: [
+        "administradora",
+        "agente_merito",
+        "agente_administrativo",
+        "auditor",
+      ],
+      document_type: [
+        "formulario",
+        "identidade",
+        "portfolio",
+        "comprobatorio",
+        "grp",
+        "zimbra",
+        "outro",
+      ],
+      normative_status: ["vigente", "arquivado"],
+      proponent_status: [
+        "nao_importado",
+        "importado",
+        "inventariado",
+        "em_analise",
+        "avaliacao_proposta",
+        "auditoria_concluida",
+        "pendencia_humana",
+        "aprovado_pela_avaliadora",
+        "bloqueado",
+        "reaberto",
+        "finalizado",
+        "pendencia_administrativa",
+      ],
+    },
   },
 } as const
