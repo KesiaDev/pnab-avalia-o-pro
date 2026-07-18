@@ -77,14 +77,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "PNAB Caxias — Avaliação Assistida | Edital 119/2026" },
+      { name: "description", content: "Plataforma privada de avaliação documental assistida do Edital 119/2026 (PNAB Ciclo 2) — Caxias do Sul." },
+      { name: "author", content: "Viviane da Rocha Palma" },
+      { name: "robots", content: "noindex, nofollow" },
+      { property: "og:title", content: "PNAB Caxias — Avaliação Assistida" },
+      { property: "og:description", content: "Avaliação documental assistida do Edital 119/2026, Caxias do Sul." },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:card", content: "summary" },
     ],
     links: [
       {
