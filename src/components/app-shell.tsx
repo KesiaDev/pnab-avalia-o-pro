@@ -15,14 +15,19 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
-const NAV = [
+const NAV: Array<{
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  badge?: string;
+}> = [
   { to: "/", label: "Painel", icon: LayoutDashboard },
   { to: "/fonte-documental", label: "Fonte documental", icon: FolderSync },
   { to: "/proponentes", label: "Proponentes", icon: Users, badge: "8" },
   { to: "/mudancas", label: "Mudanças", icon: History, badge: "5" },
   { to: "/auditoria", label: "Auditoria", icon: ShieldCheck },
   { to: "/documentos-normativos", label: "Documentos normativos", icon: BookMarked },
-] as const;
+];
 
 export function AppShell({ children, title, subtitle, actions }: {
   children: ReactNode;
