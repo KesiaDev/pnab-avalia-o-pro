@@ -57,6 +57,19 @@ export function useCreateProponent() {
   });
 }
 
+export function useDeleteProponent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("proponents").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["proponents"] });
+    },
+  });
+}
+
 export function useCriterionScores(proponentId: string) {
   return useQuery({
     queryKey: ["criterion_scores", proponentId],
