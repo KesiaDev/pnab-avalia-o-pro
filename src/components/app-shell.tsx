@@ -58,7 +58,7 @@ export function AppShell({ children, title, subtitle, actions }: {
             return (
               <Link
                 key={to}
-                to={to}
+                to={to as string}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
                   active
