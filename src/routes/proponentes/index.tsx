@@ -77,19 +77,20 @@ function ProponentesList() {
               <th className="text-center px-4 py-3 font-medium">Alerta</th>
               <th className="text-center px-4 py-3 font-medium">Pend.</th>
               <th className="text-right px-4 py-3 font-medium">Nota total</th>
+              <th className="w-12 px-2 py-3"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {isLoading && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
                   Carregando…
                 </td>
               </tr>
             )}
             {!isLoading && filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
                   Nenhum proponente cadastrado ainda.
                 </td>
               </tr>
