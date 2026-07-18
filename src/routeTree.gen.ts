@@ -9,38 +9,148 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as MudancasRouteImport } from './routes/mudancas'
+import { Route as FonteDocumentalRouteImport } from './routes/fonte-documental'
+import { Route as DocumentosNormativosRouteImport } from './routes/documentos-normativos'
+import { Route as AuditoriaRouteImport } from './routes/auditoria'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProponentesIndexRouteImport } from './routes/proponentes/index'
+import { Route as ProponentesIdRouteImport } from './routes/proponentes/$id'
 
+const MudancasRoute = MudancasRouteImport.update({
+  id: '/mudancas',
+  path: '/mudancas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FonteDocumentalRoute = FonteDocumentalRouteImport.update({
+  id: '/fonte-documental',
+  path: '/fonte-documental',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocumentosNormativosRoute = DocumentosNormativosRouteImport.update({
+  id: '/documentos-normativos',
+  path: '/documentos-normativos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuditoriaRoute = AuditoriaRouteImport.update({
+  id: '/auditoria',
+  path: '/auditoria',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProponentesIndexRoute = ProponentesIndexRouteImport.update({
+  id: '/proponentes/',
+  path: '/proponentes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProponentesIdRoute = ProponentesIdRouteImport.update({
+  id: '/proponentes/$id',
+  path: '/proponentes/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auditoria': typeof AuditoriaRoute
+  '/documentos-normativos': typeof DocumentosNormativosRoute
+  '/fonte-documental': typeof FonteDocumentalRoute
+  '/mudancas': typeof MudancasRoute
+  '/proponentes/$id': typeof ProponentesIdRoute
+  '/proponentes/': typeof ProponentesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auditoria': typeof AuditoriaRoute
+  '/documentos-normativos': typeof DocumentosNormativosRoute
+  '/fonte-documental': typeof FonteDocumentalRoute
+  '/mudancas': typeof MudancasRoute
+  '/proponentes/$id': typeof ProponentesIdRoute
+  '/proponentes': typeof ProponentesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/auditoria': typeof AuditoriaRoute
+  '/documentos-normativos': typeof DocumentosNormativosRoute
+  '/fonte-documental': typeof FonteDocumentalRoute
+  '/mudancas': typeof MudancasRoute
+  '/proponentes/$id': typeof ProponentesIdRoute
+  '/proponentes/': typeof ProponentesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auditoria'
+    | '/documentos-normativos'
+    | '/fonte-documental'
+    | '/mudancas'
+    | '/proponentes/$id'
+    | '/proponentes/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auditoria'
+    | '/documentos-normativos'
+    | '/fonte-documental'
+    | '/mudancas'
+    | '/proponentes/$id'
+    | '/proponentes'
+  id:
+    | '__root__'
+    | '/'
+    | '/auditoria'
+    | '/documentos-normativos'
+    | '/fonte-documental'
+    | '/mudancas'
+    | '/proponentes/$id'
+    | '/proponentes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuditoriaRoute: typeof AuditoriaRoute
+  DocumentosNormativosRoute: typeof DocumentosNormativosRoute
+  FonteDocumentalRoute: typeof FonteDocumentalRoute
+  MudancasRoute: typeof MudancasRoute
+  ProponentesIdRoute: typeof ProponentesIdRoute
+  ProponentesIndexRoute: typeof ProponentesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/mudancas': {
+      id: '/mudancas'
+      path: '/mudancas'
+      fullPath: '/mudancas'
+      preLoaderRoute: typeof MudancasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fonte-documental': {
+      id: '/fonte-documental'
+      path: '/fonte-documental'
+      fullPath: '/fonte-documental'
+      preLoaderRoute: typeof FonteDocumentalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/documentos-normativos': {
+      id: '/documentos-normativos'
+      path: '/documentos-normativos'
+      fullPath: '/documentos-normativos'
+      preLoaderRoute: typeof DocumentosNormativosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auditoria': {
+      id: '/auditoria'
+      path: '/auditoria'
+      fullPath: '/auditoria'
+      preLoaderRoute: typeof AuditoriaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +158,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/proponentes/': {
+      id: '/proponentes/'
+      path: '/proponentes'
+      fullPath: '/proponentes/'
+      preLoaderRoute: typeof ProponentesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/proponentes/$id': {
+      id: '/proponentes/$id'
+      path: '/proponentes/$id'
+      fullPath: '/proponentes/$id'
+      preLoaderRoute: typeof ProponentesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuditoriaRoute: AuditoriaRoute,
+  DocumentosNormativosRoute: DocumentosNormativosRoute,
+  FonteDocumentalRoute: FonteDocumentalRoute,
+  MudancasRoute: MudancasRoute,
+  ProponentesIdRoute: ProponentesIdRoute,
+  ProponentesIndexRoute: ProponentesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
