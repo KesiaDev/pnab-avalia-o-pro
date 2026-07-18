@@ -27,7 +27,10 @@ export const STATUS_LABEL: Record<ProponentStatus, string> = {
   pendencia_administrativa: "Pendência administrativa",
 };
 
-export const STATUS_TONE: Record<ProponentStatus, "neutral" | "info" | "warning" | "success" | "danger"> = {
+export const STATUS_TONE: Record<
+  ProponentStatus,
+  "neutral" | "info" | "warning" | "success" | "danger"
+> = {
   nao_importado: "neutral",
   importado: "info",
   inventariado: "info",
@@ -40,6 +43,13 @@ export const STATUS_TONE: Record<ProponentStatus, "neutral" | "info" | "warning"
   reaberto: "warning",
   finalizado: "success",
   pendencia_administrativa: "danger",
+};
+
+export const ROLE_LABEL: Record<string, string> = {
+  administradora: "Administradora",
+  agente_merito: "Agente de mérito",
+  agente_administrativo: "Agente administrativo",
+  auditor: "Auditor",
 };
 
 export interface Proponent {
@@ -209,7 +219,8 @@ export const criteria: CriterionScore[] = [
     proposto: 6,
     aprovado: null,
     evidencias: 3,
-    fundamentacao: "Formação continuada de agentes locais, com contratação de profissionais da comunidade.",
+    fundamentacao:
+      "Formação continuada de agentes locais, com contratação de profissionais da comunidade.",
     humanReviewRequired: false,
   },
   {
@@ -247,12 +258,72 @@ export interface ImportedFile {
 }
 
 export const mockFiles: ImportedFile[] = [
-  { id: "f1", nome: "1 FORMULARIO_INSCRICAO.pdf", tipo: "formulario", paginas: 12, tamanhoKb: 480, versao: 2, sha256: "a1b2c3…", atualizadoEm: "2026-03-14", minimizado: true },
-  { id: "f2", nome: "2 RG_CNH.pdf", tipo: "identidade", paginas: 2, tamanhoKb: 220, versao: 1, sha256: "d4e5f6…", atualizadoEm: "2026-03-10", minimizado: false },
-  { id: "f3", nome: "3 PORTFOLIO.pdf", tipo: "portfolio", paginas: 42, tamanhoKb: 8120, versao: 3, sha256: "aa11bb…", atualizadoEm: "2026-03-14", minimizado: true },
-  { id: "f4", nome: "4 COMPROVANTES_2015-2024.pdf", tipo: "comprobatorio", paginas: 68, tamanhoKb: 12400, versao: 1, sha256: "cc22dd…", atualizadoEm: "2026-03-10", minimizado: true },
-  { id: "f5", nome: "5 GRP_PROCESSO.pdf", tipo: "grp", paginas: 3, tamanhoKb: 190, versao: 1, sha256: "ee33ff…", atualizadoEm: "2026-03-10", minimizado: false },
-  { id: "f6", nome: "6 PROTOCOLO_ZIMBRA.pdf", tipo: "zimbra", paginas: 1, tamanhoKb: 88, versao: 1, sha256: "gg44hh…", atualizadoEm: "2026-03-10", minimizado: false },
+  {
+    id: "f1",
+    nome: "1 FORMULARIO_INSCRICAO.pdf",
+    tipo: "formulario",
+    paginas: 12,
+    tamanhoKb: 480,
+    versao: 2,
+    sha256: "a1b2c3…",
+    atualizadoEm: "2026-03-14",
+    minimizado: true,
+  },
+  {
+    id: "f2",
+    nome: "2 RG_CNH.pdf",
+    tipo: "identidade",
+    paginas: 2,
+    tamanhoKb: 220,
+    versao: 1,
+    sha256: "d4e5f6…",
+    atualizadoEm: "2026-03-10",
+    minimizado: false,
+  },
+  {
+    id: "f3",
+    nome: "3 PORTFOLIO.pdf",
+    tipo: "portfolio",
+    paginas: 42,
+    tamanhoKb: 8120,
+    versao: 3,
+    sha256: "aa11bb…",
+    atualizadoEm: "2026-03-14",
+    minimizado: true,
+  },
+  {
+    id: "f4",
+    nome: "4 COMPROVANTES_2015-2024.pdf",
+    tipo: "comprobatorio",
+    paginas: 68,
+    tamanhoKb: 12400,
+    versao: 1,
+    sha256: "cc22dd…",
+    atualizadoEm: "2026-03-10",
+    minimizado: true,
+  },
+  {
+    id: "f5",
+    nome: "5 GRP_PROCESSO.pdf",
+    tipo: "grp",
+    paginas: 3,
+    tamanhoKb: 190,
+    versao: 1,
+    sha256: "ee33ff…",
+    atualizadoEm: "2026-03-10",
+    minimizado: false,
+  },
+  {
+    id: "f6",
+    nome: "6 PROTOCOLO_ZIMBRA.pdf",
+    tipo: "zimbra",
+    paginas: 1,
+    tamanhoKb: 88,
+    versao: 1,
+    sha256: "gg44hh…",
+    atualizadoEm: "2026-03-10",
+    minimizado: false,
+  },
 ];
 
 export interface ChangeEntry {
@@ -274,11 +345,49 @@ export interface ChangeEntry {
 }
 
 export const mockChanges: ChangeEntry[] = [
-  { id: "c1", tipo: "novo_proponente", proponente: "Cia. Passo & Sopro", detectadoEm: "2026-03-14T12:04:00Z", acao: "Distribuir e iniciar inventário" },
-  { id: "c2", tipo: "arquivo_alterado", proponente: "Ana Beatriz Machado", arquivo: "3 PORTFOLIO.pdf", antes: "v2 · 7.8MB", depois: "v3 · 8.1MB", detectadoEm: "2026-03-14T10:22:00Z", acao: "Bloquear e revisar avaliação já proposta" },
-  { id: "c3", tipo: "novo_arquivo", proponente: "Sofia Antunes", arquivo: "ANEXO_MATERIAS.pdf", detectadoEm: "2026-03-14T09:11:00Z", acao: "Reabrir análise" },
-  { id: "c4", tipo: "arquivo_renomeado", proponente: "João Vitor Salvatti", arquivo: "3 PORTFOLIO.pdf", antes: "portfolio_final.pdf", depois: "3 PORTFOLIO.pdf", detectadoEm: "2026-03-13T18:00:00Z", acao: "Nenhuma — apenas registrar" },
-  { id: "c5", tipo: "arquivo_excluido_fonte", proponente: "Estúdio Interzona", arquivo: "5 GRP.pdf", detectadoEm: "2026-03-13T14:22:00Z", acao: "Cópia privada preservada — verificar com SMC" },
+  {
+    id: "c1",
+    tipo: "novo_proponente",
+    proponente: "Cia. Passo & Sopro",
+    detectadoEm: "2026-03-14T12:04:00Z",
+    acao: "Distribuir e iniciar inventário",
+  },
+  {
+    id: "c2",
+    tipo: "arquivo_alterado",
+    proponente: "Ana Beatriz Machado",
+    arquivo: "3 PORTFOLIO.pdf",
+    antes: "v2 · 7.8MB",
+    depois: "v3 · 8.1MB",
+    detectadoEm: "2026-03-14T10:22:00Z",
+    acao: "Bloquear e revisar avaliação já proposta",
+  },
+  {
+    id: "c3",
+    tipo: "novo_arquivo",
+    proponente: "Sofia Antunes",
+    arquivo: "ANEXO_MATERIAS.pdf",
+    detectadoEm: "2026-03-14T09:11:00Z",
+    acao: "Reabrir análise",
+  },
+  {
+    id: "c4",
+    tipo: "arquivo_renomeado",
+    proponente: "João Vitor Salvatti",
+    arquivo: "3 PORTFOLIO.pdf",
+    antes: "portfolio_final.pdf",
+    depois: "3 PORTFOLIO.pdf",
+    detectadoEm: "2026-03-13T18:00:00Z",
+    acao: "Nenhuma — apenas registrar",
+  },
+  {
+    id: "c5",
+    tipo: "arquivo_excluido_fonte",
+    proponente: "Estúdio Interzona",
+    arquivo: "5 GRP.pdf",
+    detectadoEm: "2026-03-13T14:22:00Z",
+    acao: "Cópia privada preservada — verificar com SMC",
+  },
 ];
 
 export interface NormativeDoc {
@@ -291,18 +400,76 @@ export interface NormativeDoc {
 }
 
 export const normativeDocs: NormativeDoc[] = [
-  { id: "n1", titulo: "Edital de Chamamento Público nº 119/2026 e anexos", versao: "v1.0", data: "2026-01-15", hash: "sha256:e11d9…", status: "vigente" },
-  { id: "n2", titulo: "Modelo de Ficha de Avaliação — Edital 119/2026", versao: "v1.0", data: "2026-01-15", hash: "sha256:8c2a1…", status: "vigente" },
-  { id: "n3", titulo: "Relação de contemplados — Edital nº 231/2024 (PNAB Ciclo 1)", versao: "v1.2", data: "2024-12-10", hash: "sha256:22f81…", status: "vigente" },
-  { id: "n4", titulo: "Contrato nº 2026/531 — Viviane da Rocha Palma", versao: "v1.0", data: "2026-02-01", hash: "sha256:4a9b0…", status: "vigente" },
-  { id: "n5", titulo: "Lei Municipal nº 8.741/2021 — Bairros de Caxias do Sul", versao: "v1.0", data: "2021-11-04", hash: "sha256:1de6c…", status: "vigente" },
-  { id: "n6", titulo: "SEPLAN — Regiões Administrativas por Bairros", versao: "2025", data: "2025-03-20", hash: "sha256:77b2c…", status: "vigente" },
-  { id: "n7", titulo: "Planilha Geral de Notas — Edital 119/2026", versao: "v0.4 (rascunho)", data: "2026-03-01", hash: "sha256:0aa11…", status: "vigente" },
+  {
+    id: "n1",
+    titulo: "Edital de Chamamento Público nº 119/2026 e anexos",
+    versao: "v1.0",
+    data: "2026-01-15",
+    hash: "sha256:e11d9…",
+    status: "vigente",
+  },
+  {
+    id: "n2",
+    titulo: "Modelo de Ficha de Avaliação — Edital 119/2026",
+    versao: "v1.0",
+    data: "2026-01-15",
+    hash: "sha256:8c2a1…",
+    status: "vigente",
+  },
+  {
+    id: "n3",
+    titulo: "Relação de contemplados — Edital nº 231/2024 (PNAB Ciclo 1)",
+    versao: "v1.2",
+    data: "2024-12-10",
+    hash: "sha256:22f81…",
+    status: "vigente",
+  },
+  {
+    id: "n4",
+    titulo: "Contrato nº 2026/531 — Viviane da Rocha Palma",
+    versao: "v1.0",
+    data: "2026-02-01",
+    hash: "sha256:4a9b0…",
+    status: "vigente",
+  },
+  {
+    id: "n5",
+    titulo: "Lei Municipal nº 8.741/2021 — Bairros de Caxias do Sul",
+    versao: "v1.0",
+    data: "2021-11-04",
+    hash: "sha256:1de6c…",
+    status: "vigente",
+  },
+  {
+    id: "n6",
+    titulo: "SEPLAN — Regiões Administrativas por Bairros",
+    versao: "2025",
+    data: "2025-03-20",
+    hash: "sha256:77b2c…",
+    status: "vigente",
+  },
+  {
+    id: "n7",
+    titulo: "Planilha Geral de Notas — Edital 119/2026",
+    versao: "v0.4 (rascunho)",
+    data: "2026-03-01",
+    hash: "sha256:0aa11…",
+    status: "vigente",
+  },
 ];
 
 export const excludedNeighborhoods = [
-  "Centro", "Exposição", "São Pelegrino", "Rio Branco", "Nossa Senhora de Lourdes",
-  "Santa Catarina", "Pio X", "Panazzolo", "Jardim América", "Madureira", "Universitário",
+  "Centro",
+  "Exposição",
+  "São Pelegrino",
+  "Rio Branco",
+  "Nossa Senhora de Lourdes",
+  "Santa Catarina",
+  "Pio X",
+  "Panazzolo",
+  "Jardim América",
+  "Madureira",
+  "Universitário",
 ];
 
 export function findProponent(id: string) {

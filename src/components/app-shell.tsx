@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import {
   LayoutDashboard,
@@ -14,6 +14,9 @@ import {
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/use-auth";
+import { useCurrentProfile, useCurrentRoles } from "@/lib/queries/current-user";
+import { ROLE_LABEL } from "@/lib/mock-data";
 
 const NAV: Array<{
   to: string;
@@ -29,13 +32,38 @@ const NAV: Array<{
   { to: "/documentos-normativos", label: "Documentos normativos", icon: BookMarked },
 ];
 
-export function AppShell({ children, title, subtitle, actions }: {
+export function AppShell({
+  children,
+  title,
+  subtitle,
+  actions,
+}: {
   children: ReactNode;
   title: string;
   subtitle?: string;
   actions?: ReactNode;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const { data: profile } = useCurrentProfile();
+  const { data: roles } = useCurrentRoles();
+
+  const displayName = profile?.display_name ?? user?.email ?? "—";
+  const initials = displayName
+    .split(/\s+/)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  const roleLabel = roles?.length
+    ? roles.map((r) => ROLE_LABEL[r]).join(" · ")
+    : "Sem papel atribuído";
+
+  async function handleSignOut() {
+    await signOut();
+    navigate({ to: "/login" });
+  }
 
   return (
     <div className="min-h-screen bg-background paper-texture flex">
@@ -47,9 +75,7 @@ export function AppShell({ children, title, subtitle, actions }: {
           <h1 className="font-serif text-xl leading-tight mt-1.5 text-sidebar-foreground">
             Avaliação Assistida
           </h1>
-          <div className="text-xs text-sidebar-foreground/70 mt-1">
-            Edital 119/2026 · Ciclo 2
-          </div>
+          <div className="text-xs text-sidebar-foreground/70 mt-1">Edital 119/2026 · Ciclo 2</div>
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-0.5">
@@ -81,13 +107,17 @@ export function AppShell({ children, title, subtitle, actions }: {
         <div className="px-4 py-4 border-t border-sidebar-border">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center font-serif text-sm">
-              VR
+              {initials || "—"}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">Viviane da Rocha Palma</div>
-              <div className="text-[11px] text-sidebar-foreground/60">Avaliadora · Contrato 2026/531</div>
+              <div className="text-sm font-medium truncate">{displayName}</div>
+              <div className="text-[11px] text-sidebar-foreground/60 truncate">{roleLabel}</div>
             </div>
-            <button className="text-sidebar-foreground/60 hover:text-sidebar-foreground" title="Sair">
+            <button
+              onClick={handleSignOut}
+              className="text-sidebar-foreground/60 hover:text-sidebar-foreground"
+              title="Sair"
+            >
               <LogOut className="w-4 h-4" />
             </button>
           </div>
@@ -103,7 +133,10 @@ export function AppShell({ children, title, subtitle, actions }: {
             </div>
             <div className="relative w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Buscar proponente, arquivo, evidência…" className="pl-9 bg-card" />
+              <Input
+                placeholder="Buscar proponente, arquivo, evidência…"
+                className="pl-9 bg-card"
+              />
             </div>
             {actions}
           </div>
@@ -118,7 +151,10 @@ export function AppShell({ children, title, subtitle, actions }: {
   );
 }
 
-export function StatusBadge({ tone, children }: {
+export function StatusBadge({
+  tone,
+  children,
+}: {
   tone: "neutral" | "info" | "warning" | "success" | "danger";
   children: ReactNode;
 }) {

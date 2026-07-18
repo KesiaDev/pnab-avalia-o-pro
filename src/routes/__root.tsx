@@ -4,6 +4,8 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
+  useNavigate,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -11,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { useAuth } from "../hooks/use-auth";
 
 function NotFoundComponent() {
   return (
@@ -78,11 +81,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "PNAB Caxias — Avaliação Assistida | Edital 119/2026" },
-      { name: "description", content: "Plataforma privada de avaliação documental assistida do Edital 119/2026 (PNAB Ciclo 2) — Caxias do Sul." },
+      {
+        name: "description",
+        content:
+          "Plataforma privada de avaliação documental assistida do Edital 119/2026 (PNAB Ciclo 2) — Caxias do Sul.",
+      },
       { name: "author", content: "Viviane da Rocha Palma" },
       { name: "robots", content: "noindex, nofollow" },
       { property: "og:title", content: "PNAB Caxias — Avaliação Assistida" },
-      { property: "og:description", content: "Avaliação documental assistida do Edital 119/2026, Caxias do Sul." },
+      {
+        property: "og:description",
+        content: "Avaliação documental assistida do Edital 119/2026, Caxias do Sul.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -122,8 +132,39 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <AuthGate>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+      </AuthGate>
     </QueryClientProvider>
   );
+}
+
+function AuthGate({ children }: { children: ReactNode }) {
+  const { session, loading } = useAuth();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (loading) return;
+    if (!session && pathname !== "/login") {
+      navigate({ to: "/login" });
+    } else if (session && pathname === "/login") {
+      navigate({ to: "/" });
+    }
+  }, [loading, session, pathname, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-sm text-muted-foreground">
+        Carregando…
+      </div>
+    );
+  }
+
+  if (!session && pathname !== "/login") {
+    return null;
+  }
+
+  return <>{children}</>;
 }

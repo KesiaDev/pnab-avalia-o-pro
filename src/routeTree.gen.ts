@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuditoriaRouteImport } from './routes/auditoria'
 import { Route as DocumentosNormativosRouteImport } from './routes/documentos-normativos'
 import { Route as FonteDocumentalRouteImport } from './routes/fonte-documental'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as MudancasRouteImport } from './routes/mudancas'
 import { Route as ProponentesIndexRouteImport } from './routes/proponentes/index'
 import { Route as ProponentesIdRouteImport } from './routes/proponentes/$id'
@@ -37,6 +38,11 @@ const FonteDocumentalRoute = FonteDocumentalRouteImport.update({
   path: '/fonte-documental',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MudancasRoute = MudancasRouteImport.update({
   id: '/mudancas',
   path: '/mudancas',
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/auditoria': typeof AuditoriaRoute
   '/documentos-normativos': typeof DocumentosNormativosRoute
   '/fonte-documental': typeof FonteDocumentalRoute
+  '/login': typeof LoginRoute
   '/mudancas': typeof MudancasRoute
   '/proponentes/$id': typeof ProponentesIdRoute
   '/proponentes/': typeof ProponentesIndexRoute
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/auditoria': typeof AuditoriaRoute
   '/documentos-normativos': typeof DocumentosNormativosRoute
   '/fonte-documental': typeof FonteDocumentalRoute
+  '/login': typeof LoginRoute
   '/mudancas': typeof MudancasRoute
   '/proponentes/$id': typeof ProponentesIdRoute
   '/proponentes': typeof ProponentesIndexRoute
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/auditoria': typeof AuditoriaRoute
   '/documentos-normativos': typeof DocumentosNormativosRoute
   '/fonte-documental': typeof FonteDocumentalRoute
+  '/login': typeof LoginRoute
   '/mudancas': typeof MudancasRoute
   '/proponentes/$id': typeof ProponentesIdRoute
   '/proponentes/': typeof ProponentesIndexRoute
@@ -88,6 +97,7 @@ export interface FileRouteTypes {
     | '/auditoria'
     | '/documentos-normativos'
     | '/fonte-documental'
+    | '/login'
     | '/mudancas'
     | '/proponentes/$id'
     | '/proponentes/'
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/auditoria'
     | '/documentos-normativos'
     | '/fonte-documental'
+    | '/login'
     | '/mudancas'
     | '/proponentes/$id'
     | '/proponentes'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/auditoria'
     | '/documentos-normativos'
     | '/fonte-documental'
+    | '/login'
     | '/mudancas'
     | '/proponentes/$id'
     | '/proponentes/'
@@ -116,6 +128,7 @@ export interface RootRouteChildren {
   AuditoriaRoute: typeof AuditoriaRoute
   DocumentosNormativosRoute: typeof DocumentosNormativosRoute
   FonteDocumentalRoute: typeof FonteDocumentalRoute
+  LoginRoute: typeof LoginRoute
   MudancasRoute: typeof MudancasRoute
   ProponentesIdRoute: typeof ProponentesIdRoute
   ProponentesIndexRoute: typeof ProponentesIndexRoute
@@ -151,6 +164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FonteDocumentalRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mudancas': {
       id: '/mudancas'
       path: '/mudancas'
@@ -180,6 +200,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuditoriaRoute: AuditoriaRoute,
   DocumentosNormativosRoute: DocumentosNormativosRoute,
   FonteDocumentalRoute: FonteDocumentalRoute,
+  LoginRoute: LoginRoute,
   MudancasRoute: MudancasRoute,
   ProponentesIdRoute: ProponentesIdRoute,
   ProponentesIndexRoute: ProponentesIndexRoute,
@@ -187,3 +208,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
