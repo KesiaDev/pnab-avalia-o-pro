@@ -21,12 +21,15 @@ import {
 interface FonteSearch {
   connected?: string;
   google_error?: string;
+  google_error_detail?: string;
 }
 
 export const Route = createFileRoute("/fonte-documental")({
   validateSearch: (search: Record<string, unknown>): FonteSearch => ({
     connected: typeof search.connected === "string" ? search.connected : undefined,
     google_error: typeof search.google_error === "string" ? search.google_error : undefined,
+    google_error_detail:
+      typeof search.google_error_detail === "string" ? search.google_error_detail : undefined,
   }),
   component: FonteDocumental,
 });
@@ -38,6 +41,7 @@ const ERROR_LABEL: Record<string, string> = {
     "O Google não devolveu um refresh token. Tente desconectar no Google e conectar de novo (prompt=consent já está ativo).",
   save_failed: "Falha ao salvar a conexão no banco.",
   access_denied: "Acesso negado na tela de consentimento do Google.",
+  unexpected: "Erro inesperado durante a conexão.",
 };
 
 function FonteDocumental() {
@@ -85,6 +89,9 @@ function FonteDocumental() {
           <AlertTitle className="font-serif">Falha na conexão</AlertTitle>
           <AlertDescription className="text-xs text-muted-foreground">
             {ERROR_LABEL[search.google_error] ?? search.google_error}
+            {search.google_error_detail && (
+              <div className="mt-1 font-mono text-[11px] opacity-80">{search.google_error_detail}</div>
+            )}
           </AlertDescription>
         </Alert>
       )}

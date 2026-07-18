@@ -113,34 +113,39 @@ export const handleGoogleOAuthCallback = createServerFn({ method: "GET" })
       return { ok: false as const, errorCode: "missing_code" };
     }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { exchangeCodeForTokens, encryptRefreshToken, bufferToPgBytea } =
-      await import("@/lib/google-oauth.server");
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { exchangeCodeForTokens, encryptRefreshToken, bufferToPgBytea } =
+        await import("@/lib/google-oauth.server");
 
-    const { data: roleRow } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", data.state)
-      .eq("role", "administradora")
-      .maybeSingle();
-    if (!roleRow) {
-      return { ok: false as const, errorCode: "unauthorized" };
+      const { data: roleRow } = await supabaseAdmin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", data.state)
+        .eq("role", "administradora")
+        .maybeSingle();
+      if (!roleRow) {
+        return { ok: false as const, errorCode: "unauthorized" };
+      }
+
+      const tokens = await exchangeCodeForTokens(data.code);
+      if (!tokens.refresh_token) {
+        return { ok: false as const, errorCode: "no_refresh_token" };
+      }
+
+      const encrypted = bufferToPgBytea(encryptRefreshToken(tokens.refresh_token));
+      const { error: insertError } = await supabaseAdmin.from("drive_connections").insert({
+        connected_by: data.state,
+        refresh_token_encrypted: encrypted as unknown as never,
+        scope: tokens.scope,
+      });
+      if (insertError) {
+        return { ok: false as const, errorCode: "save_failed", detail: insertError.message };
+      }
+
+      return { ok: true as const };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { ok: false as const, errorCode: "unexpected", detail: message.slice(0, 300) };
     }
-
-    const tokens = await exchangeCodeForTokens(data.code);
-    if (!tokens.refresh_token) {
-      return { ok: false as const, errorCode: "no_refresh_token" };
-    }
-
-    const encrypted = bufferToPgBytea(encryptRefreshToken(tokens.refresh_token));
-    const { error: insertError } = await supabaseAdmin.from("drive_connections").insert({
-      connected_by: data.state,
-      refresh_token_encrypted: encrypted as unknown as never,
-      scope: tokens.scope,
-    });
-    if (insertError) {
-      return { ok: false as const, errorCode: "save_failed" };
-    }
-
-    return { ok: true as const };
   });
