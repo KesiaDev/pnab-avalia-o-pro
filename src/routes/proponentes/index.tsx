@@ -231,3 +231,45 @@ function NewProponentDialog() {
     </Dialog>
   );
 }
+
+function DeleteProponentButton({ id, nome }: { id: string; nome: string }) {
+  const [open, setOpen] = useState(false);
+  const deleteProponent = useDeleteProponent();
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+          aria-label={`Excluir ${nome}`}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="font-serif">Excluir proponente</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja excluir <span className="font-medium">{nome}</span>? Esta ação
+            remove o dossiê, avaliações, critérios e arquivos associados. Não pode ser desfeita.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleteProponent.isPending}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={deleteProponent.isPending}
+            onClick={async (e) => {
+              e.preventDefault();
+              await deleteProponent.mutateAsync(id);
+              setOpen(false);
+            }}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {deleteProponent.isPending ? "Excluindo…" : "Excluir"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
