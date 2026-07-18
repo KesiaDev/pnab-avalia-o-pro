@@ -18,6 +18,7 @@ import { Route as MudancasRouteImport } from './routes/mudancas'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ProponentesIndexRouteImport } from './routes/proponentes/index'
 import { Route as ProponentesIdRouteImport } from './routes/proponentes/$id'
+import { Route as ApiGoogleOauthCallbackRouteImport } from './routes/api/google/oauth/callback'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -64,6 +65,11 @@ const ProponentesIdRoute = ProponentesIdRouteImport.update({
   path: '/proponentes/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiGoogleOauthCallbackRoute = ApiGoogleOauthCallbackRouteImport.update({
+  id: '/api/google/oauth/callback',
+  path: '/api/google/oauth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/proponentes/$id': typeof ProponentesIdRoute
   '/proponentes/': typeof ProponentesIndexRoute
+  '/api/google/oauth/callback': typeof ApiGoogleOauthCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/proponentes/$id': typeof ProponentesIdRoute
   '/proponentes': typeof ProponentesIndexRoute
+  '/api/google/oauth/callback': typeof ApiGoogleOauthCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -98,6 +106,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/proponentes/$id': typeof ProponentesIdRoute
   '/proponentes/': typeof ProponentesIndexRoute
+  '/api/google/oauth/callback': typeof ApiGoogleOauthCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -111,6 +120,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/proponentes/$id'
     | '/proponentes/'
+    | '/api/google/oauth/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -122,6 +132,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/proponentes/$id'
     | '/proponentes'
+    | '/api/google/oauth/callback'
   id:
     | '__root__'
     | '/'
@@ -133,6 +144,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/proponentes/$id'
     | '/proponentes/'
+    | '/api/google/oauth/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -145,6 +157,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ProponentesIdRoute: typeof ProponentesIdRoute
   ProponentesIndexRoute: typeof ProponentesIndexRoute
+  ApiGoogleOauthCallbackRoute: typeof ApiGoogleOauthCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -212,6 +225,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProponentesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/google/oauth/callback': {
+      id: '/api/google/oauth/callback'
+      path: '/api/google/oauth/callback'
+      fullPath: '/api/google/oauth/callback'
+      preLoaderRoute: typeof ApiGoogleOauthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -225,7 +245,18 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ProponentesIdRoute: ProponentesIdRoute,
   ProponentesIndexRoute: ProponentesIndexRoute,
+  ApiGoogleOauthCallbackRoute: ApiGoogleOauthCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

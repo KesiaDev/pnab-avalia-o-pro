@@ -1,23 +1,94 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Switch } from "@/components/ui/switch";
-import { CheckCircle2, FolderOpen, Info, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FolderOpen, Info, ShieldCheck } from "lucide-react";
+import {
+  useActiveDriveConnection,
+  useDriveSource,
+  useDisconnectGoogle,
+  useLatestSyncRun,
+  useRunBaseline,
+  useRunSync,
+  useSaveDriveSource,
+  useStartGoogleOAuth,
+} from "@/lib/queries/drive";
+
+interface FonteSearch {
+  connected?: string;
+  google_error?: string;
+}
 
 export const Route = createFileRoute("/fonte-documental")({
+  validateSearch: (search: Record<string, unknown>): FonteSearch => ({
+    connected: typeof search.connected === "string" ? search.connected : undefined,
+    google_error: typeof search.google_error === "string" ? search.google_error : undefined,
+  }),
   component: FonteDocumental,
 });
 
+const ERROR_LABEL: Record<string, string> = {
+  missing_code: "O Google não retornou um código de autorização.",
+  unauthorized: "Sua conta não tem papel de administradora — conexão recusada.",
+  no_refresh_token:
+    "O Google não devolveu um refresh token. Tente desconectar no Google e conectar de novo (prompt=consent já está ativo).",
+  save_failed: "Falha ao salvar a conexão no banco.",
+  access_denied: "Acesso negado na tela de consentimento do Google.",
+};
+
 function FonteDocumental() {
+  const search = Route.useSearch();
+  const { data: connection, isLoading: loadingConnection } = useActiveDriveConnection();
+  const { data: source } = useDriveSource(connection?.id);
+  const { data: latestRun } = useLatestSyncRun(source?.id);
+  const startOAuth = useStartGoogleOAuth();
+  const disconnect = useDisconnectGoogle();
+  const saveSource = useSaveDriveSource();
+  const runBaseline = useRunBaseline();
+  const runSync = useRunSync();
+
+  const [folderInput, setFolderInput] = useState("");
+
+  const stats = latestRun?.stats as
+    | {
+        subpastas: number;
+        proponentesNovos: number;
+        arquivosNovos: number;
+        arquivosAlterados: number;
+        arquivosRenomeados: number;
+        arquivosMovidos: number;
+        arquivosExcluidos: number;
+        arquivosInalterados: number;
+        avisos: string[];
+      }
+    | null
+    | undefined;
+
   return (
     <AppShell
       title="Fonte documental"
       subtitle="Conecte a pasta compartilhada do Google Drive da SMC. A plataforma criará uma cópia privada e versionada."
     >
+      {search.connected && (
+        <Alert className="mb-4 border-success/30 bg-success/5">
+          <CheckCircle2 className="w-4 h-4 text-success" />
+          <AlertTitle className="font-serif">Conta Google conectada</AlertTitle>
+        </Alert>
+      )}
+      {search.google_error && (
+        <Alert className="mb-4 border-destructive/40 bg-destructive/5">
+          <AlertTriangle className="w-4 h-4 text-destructive" />
+          <AlertTitle className="font-serif">Falha na conexão</AlertTitle>
+          <AlertDescription className="text-xs text-muted-foreground">
+            {ERROR_LABEL[search.google_error] ?? search.google_error}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-2 space-y-6">
           <Card>
@@ -27,57 +98,138 @@ function FonteDocumental() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="flex items-center gap-3 rounded-md border border-success/30 bg-success/5 px-4 py-3 text-sm">
-                <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
-                <div className="flex-1">
-                  <div className="font-medium text-foreground">Conta conectada</div>
-                  <div className="text-xs text-muted-foreground">viviane.avaliacao.pnab@gmail.com · escopo <span className="font-mono">drive.file</span></div>
+              {loadingConnection ? (
+                <div className="text-sm text-muted-foreground">Carregando…</div>
+              ) : connection ? (
+                <div className="flex items-center gap-3 rounded-md border border-success/30 bg-success/5 px-4 py-3 text-sm">
+                  <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
+                  <div className="flex-1">
+                    <div className="font-medium text-foreground">Conta conectada</div>
+                    <div className="text-xs text-muted-foreground">
+                      escopo <span className="font-mono">drive.readonly</span> · desde{" "}
+                      {new Date(connection.connected_at).toLocaleDateString("pt-BR")}
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => disconnect.mutate(connection.id)}
+                  >
+                    Desconectar
+                  </Button>
                 </div>
-                <Button variant="outline" size="sm">Desconectar</Button>
-              </div>
+              ) : (
+                <div className="flex items-center gap-3 rounded-md border border-border bg-secondary/40 px-4 py-3 text-sm">
+                  <div className="flex-1 text-muted-foreground">
+                    Nenhuma conta Google conectada.
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={startOAuth.isPending}
+                    onClick={() => startOAuth.mutate()}
+                  >
+                    Conectar conta Google
+                  </Button>
+                </div>
+              )}
 
-              <div className="space-y-2">
-                <Label>Pasta selecionada</Label>
-                <div className="flex gap-2">
-                  <Input value="PNAB 119/2026 — Viviane (avaliadora)" readOnly className="bg-muted/40 font-mono text-xs" />
-                  <Button variant="outline">Selecionar via Picker</Button>
+              {connection && (
+                <div className="space-y-2">
+                  <Label>Pasta selecionada</Label>
+                  {source ? (
+                    <Input
+                      value={`${source.folder_name} (${source.drive_folder_id})`}
+                      readOnly
+                      className="bg-muted/40 font-mono text-xs"
+                    />
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Cole a URL ou o ID da pasta do Drive"
+                        value={folderInput}
+                        onChange={(e) => setFolderInput(e.target.value)}
+                      />
+                      <Button
+                        variant="outline"
+                        disabled={!folderInput || saveSource.isPending}
+                        onClick={() =>
+                          saveSource.mutate({
+                            connectionId: connection.id,
+                            folderUrlOrId: folderInput,
+                          })
+                        }
+                      >
+                        Salvar pasta
+                      </Button>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    O acesso é feito exclusivamente pela conta OAuth conectada acima, com escopo{" "}
+                    <span className="font-mono">drive.readonly</span>.
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  O link isolado da pasta não é suficiente. O acesso é feito exclusivamente pela conta OAuth autorizada acima.
+              )}
+
+              {source && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Button
+                    disabled={runBaseline.isPending}
+                    onClick={() => runBaseline.mutate(source.id)}
+                  >
+                    {runBaseline.isPending
+                      ? "Criando baseline…"
+                      : "Criar nova fotografia (baseline)"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={runSync.isPending}
+                    onClick={() => runSync.mutate(source.id)}
+                  >
+                    {runSync.isPending ? "Sincronizando…" : "Sincronizar agora"}
+                  </Button>
+                </div>
+              )}
+              {(runBaseline.isError || runSync.isError) && (
+                <p className="text-xs text-destructive">
+                  {(runBaseline.error as Error | undefined)?.message ??
+                    (runSync.error as Error | undefined)?.message}
                 </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2 pt-2">
-                <Button>Sincronizar agora</Button>
-                <Button variant="outline">Criar nova fotografia (baseline)</Button>
-                <Button variant="ghost">Validar acesso</Button>
-              </div>
-
-              <div className="flex items-center justify-between pt-4 border-t border-border">
-                <div>
-                  <Label className="text-sm">Verificação periódica</Label>
-                  <p className="text-xs text-muted-foreground">Revarredura recursiva a cada 2h com relatório de mudanças.</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
+              )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-serif text-lg">Baseline documental (fotografia inicial)</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
-              <Field label="Iniciada por" value="Viviane da Rocha Palma" />
-              <Field label="Data/hora" value="10/03/2026 · 09:12" />
-              <Field label="Subpastas" value="8 proponentes" />
-              <Field label="Arquivos" value="47 arquivos · 62,3 MB" />
-              <Field label="Duplicados detectados" value="3" />
-              <Field label="Acesso revogado" value="0" />
-              <Field label="Divergências com planilha" value="1 (pendência administrativa)" />
-              <Field label="Hash raiz" value="sha256:0af12c…" mono />
-            </CardContent>
-          </Card>
+          {latestRun && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-serif text-lg">
+                  {latestRun.kind === "baseline"
+                    ? "Baseline documental (fotografia inicial)"
+                    : "Última sincronização"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                <Field label="Status" value={latestRun.status} />
+                <Field
+                  label="Iniciado em"
+                  value={new Date(latestRun.started_at).toLocaleString("pt-BR")}
+                />
+                <Field label="Subpastas" value={String(stats?.subpastas ?? 0)} />
+                <Field label="Proponentes novos" value={String(stats?.proponentesNovos ?? 0)} />
+                <Field label="Arquivos novos" value={String(stats?.arquivosNovos ?? 0)} />
+                <Field label="Arquivos alterados" value={String(stats?.arquivosAlterados ?? 0)} />
+                <Field
+                  label="Renomeados / movidos"
+                  value={`${stats?.arquivosRenomeados ?? 0} / ${stats?.arquivosMovidos ?? 0}`}
+                />
+                <Field label="Excluídos na fonte" value={String(stats?.arquivosExcluidos ?? 0)} />
+                {latestRun.error_message && (
+                  <div className="col-span-2 text-destructive text-xs">
+                    {latestRun.error_message}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -85,7 +237,9 @@ function FonteDocumental() {
             <ShieldCheck className="w-4 h-4" />
             <AlertTitle className="font-serif">Permissão mínima</AlertTitle>
             <AlertDescription className="text-xs text-muted-foreground">
-              Usamos o escopo <span className="font-mono">drive.file</span> via Google Picker — apenas os itens selecionados são acessíveis. Se a enumeração recursiva exigir, oferecemos modo <span className="font-mono">drive.readonly</span> com aviso explícito.
+              Escopo <span className="font-mono">drive.readonly</span> com uma conta Google dedicada
+              — enxerga só o que essa conta tiver acesso, e a plataforma nunca altera nem exclui
+              nada na fonte.
             </AlertDescription>
           </Alert>
 
@@ -94,7 +248,10 @@ function FonteDocumental() {
             <AlertTitle className="font-serif">Regras invioláveis</AlertTitle>
             <AlertDescription className="text-xs text-muted-foreground space-y-1.5 mt-2">
               <p>• A cópia privada nunca é excluída se um arquivo é removido na fonte.</p>
-              <p>• Modificações criam nova versão — avaliações já aprovadas não mudam automaticamente.</p>
+              <p>
+                • Modificações criam nova versão — avaliações já aprovadas não mudam
+                automaticamente.
+              </p>
               <p>• Novo arquivo em candidatura já avaliada gera bloqueio e revisão humana.</p>
               <p>• Nenhum arquivo do Drive é alterado ou excluído pela plataforma.</p>
             </AlertDescription>
