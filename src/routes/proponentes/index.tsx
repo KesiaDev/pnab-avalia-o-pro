@@ -14,6 +14,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -21,8 +32,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { STATUS_LABEL, STATUS_TONE, type ProponentStatus } from "@/lib/mock-data";
-import { useCreateProponent, useProponents } from "@/lib/queries/proponents";
-import { Search, ShieldAlert } from "lucide-react";
+import { useCreateProponent, useDeleteProponent, useProponents } from "@/lib/queries/proponents";
+import { Search, ShieldAlert, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/proponentes/")({
   component: ProponentesList,
