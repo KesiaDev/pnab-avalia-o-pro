@@ -145,6 +145,9 @@ function ProponentesList() {
                       "—"
                     )}
                   </td>
+                  <td className="px-2 py-3 text-right">
+                    <DeleteProponentButton id={p.id} nome={p.nome_canonico} />
+                  </td>
                 </tr>
               );
             })}
