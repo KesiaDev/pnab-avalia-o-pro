@@ -14,6 +14,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -21,8 +32,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { STATUS_LABEL, STATUS_TONE, type ProponentStatus } from "@/lib/mock-data";
-import { useCreateProponent, useProponents } from "@/lib/queries/proponents";
-import { Search, ShieldAlert } from "lucide-react";
+import { useCreateProponent, useDeleteProponent, useProponents } from "@/lib/queries/proponents";
+import { Search, ShieldAlert, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/proponentes/")({
   component: ProponentesList,
@@ -66,19 +77,20 @@ function ProponentesList() {
               <th className="text-center px-4 py-3 font-medium">Alerta</th>
               <th className="text-center px-4 py-3 font-medium">Pend.</th>
               <th className="text-right px-4 py-3 font-medium">Nota total</th>
+              <th className="w-12 px-2 py-3"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {isLoading && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
                   Carregando…
                 </td>
               </tr>
             )}
             {!isLoading && filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
                   Nenhum proponente cadastrado ainda.
                 </td>
               </tr>
@@ -132,6 +144,9 @@ function ProponentesList() {
                     ) : (
                       "—"
                     )}
+                  </td>
+                  <td className="px-2 py-3 text-right">
+                    <DeleteProponentButton id={p.id} nome={p.nome_canonico} />
                   </td>
                 </tr>
               );
@@ -214,5 +229,47 @@ function NewProponentDialog() {
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function DeleteProponentButton({ id, nome }: { id: string; nome: string }) {
+  const [open, setOpen] = useState(false);
+  const deleteProponent = useDeleteProponent();
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+          aria-label={`Excluir ${nome}`}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="font-serif">Excluir proponente</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja excluir <span className="font-medium">{nome}</span>? Esta ação
+            remove o dossiê, avaliações, critérios e arquivos associados. Não pode ser desfeita.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleteProponent.isPending}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={deleteProponent.isPending}
+            onClick={async (e) => {
+              e.preventDefault();
+              await deleteProponent.mutateAsync(id);
+              setOpen(false);
+            }}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {deleteProponent.isPending ? "Excluindo…" : "Excluir"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

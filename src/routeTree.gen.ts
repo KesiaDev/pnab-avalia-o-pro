@@ -15,6 +15,7 @@ import { Route as DocumentosNormativosRouteImport } from './routes/documentos-no
 import { Route as FonteDocumentalRouteImport } from './routes/fonte-documental'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MudancasRouteImport } from './routes/mudancas'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ProponentesIndexRouteImport } from './routes/proponentes/index'
 import { Route as ProponentesIdRouteImport } from './routes/proponentes/$id'
 
@@ -48,6 +49,11 @@ const MudancasRoute = MudancasRouteImport.update({
   path: '/mudancas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProponentesIndexRoute = ProponentesIndexRouteImport.update({
   id: '/proponentes/',
   path: '/proponentes/',
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/fonte-documental': typeof FonteDocumentalRoute
   '/login': typeof LoginRoute
   '/mudancas': typeof MudancasRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/proponentes/$id': typeof ProponentesIdRoute
   '/proponentes/': typeof ProponentesIndexRoute
 }
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   '/fonte-documental': typeof FonteDocumentalRoute
   '/login': typeof LoginRoute
   '/mudancas': typeof MudancasRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/proponentes/$id': typeof ProponentesIdRoute
   '/proponentes': typeof ProponentesIndexRoute
 }
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/fonte-documental': typeof FonteDocumentalRoute
   '/login': typeof LoginRoute
   '/mudancas': typeof MudancasRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/proponentes/$id': typeof ProponentesIdRoute
   '/proponentes/': typeof ProponentesIndexRoute
 }
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | '/fonte-documental'
     | '/login'
     | '/mudancas'
+    | '/reset-password'
     | '/proponentes/$id'
     | '/proponentes/'
   fileRoutesByTo: FileRoutesByTo
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/fonte-documental'
     | '/login'
     | '/mudancas'
+    | '/reset-password'
     | '/proponentes/$id'
     | '/proponentes'
   id:
@@ -119,6 +130,7 @@ export interface FileRouteTypes {
     | '/fonte-documental'
     | '/login'
     | '/mudancas'
+    | '/reset-password'
     | '/proponentes/$id'
     | '/proponentes/'
   fileRoutesById: FileRoutesById
@@ -130,6 +142,7 @@ export interface RootRouteChildren {
   FonteDocumentalRoute: typeof FonteDocumentalRoute
   LoginRoute: typeof LoginRoute
   MudancasRoute: typeof MudancasRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ProponentesIdRoute: typeof ProponentesIdRoute
   ProponentesIndexRoute: typeof ProponentesIndexRoute
 }
@@ -178,6 +191,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MudancasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/proponentes/': {
       id: '/proponentes/'
       path: '/proponentes'
@@ -202,9 +222,20 @@ const rootRouteChildren: RootRouteChildren = {
   FonteDocumentalRoute: FonteDocumentalRoute,
   LoginRoute: LoginRoute,
   MudancasRoute: MudancasRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ProponentesIdRoute: ProponentesIdRoute,
   ProponentesIndexRoute: ProponentesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

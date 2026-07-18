@@ -88,13 +88,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { name: "author", content: "Viviane da Rocha Palma" },
       { name: "robots", content: "noindex, nofollow" },
-      { property: "og:title", content: "PNAB Caxias — Avaliação Assistida" },
+      { property: "og:title", content: "PNAB Caxias — Avaliação Assistida | Edital 119/2026" },
       {
         property: "og:description",
-        content: "Avaliação documental assistida do Edital 119/2026, Caxias do Sul.",
+        content: "Plataforma privada de avaliação documental assistida do Edital 119/2026 (PNAB Ciclo 2) — Caxias do Sul.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "PNAB Caxias — Avaliação Assistida | Edital 119/2026" },
+      { name: "twitter:description", content: "Plataforma privada de avaliação documental assistida do Edital 119/2026 (PNAB Ciclo 2) — Caxias do Sul." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/f98972f9-7122-4362-a51c-82f78da374c9" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/f98972f9-7122-4362-a51c-82f78da374c9" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -145,14 +149,16 @@ function AuthGate({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
 
+  const isPublic = pathname === "/login" || pathname === "/reset-password";
+
   useEffect(() => {
     if (loading) return;
-    if (!session && pathname !== "/login") {
+    if (!session && !isPublic) {
       navigate({ to: "/login" });
     } else if (session && pathname === "/login") {
       navigate({ to: "/" });
     }
-  }, [loading, session, pathname, navigate]);
+  }, [loading, session, pathname, isPublic, navigate]);
 
   if (loading) {
     return (
@@ -162,7 +168,7 @@ function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!session && pathname !== "/login") {
+  if (!session && !isPublic) {
     return null;
   }
 
