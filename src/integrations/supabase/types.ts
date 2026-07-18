@@ -97,6 +97,71 @@ export type Database = {
           },
         ]
       }
+      drive_connections: {
+        Row: {
+          connected_at: string
+          connected_by: string | null
+          google_email: string | null
+          id: string
+          refresh_token_encrypted: string
+          revoked_at: string | null
+          scope: string
+        }
+        Insert: {
+          connected_at?: string
+          connected_by?: string | null
+          google_email?: string | null
+          id?: string
+          refresh_token_encrypted: string
+          revoked_at?: string | null
+          scope?: string
+        }
+        Update: {
+          connected_at?: string
+          connected_by?: string | null
+          google_email?: string | null
+          id?: string
+          refresh_token_encrypted?: string
+          revoked_at?: string | null
+          scope?: string
+        }
+        Relationships: []
+      }
+      drive_sources: {
+        Row: {
+          connection_id: string
+          created_at: string
+          drive_folder_id: string
+          folder_name: string | null
+          id: string
+          periodic_sync_enabled: boolean
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string
+          drive_folder_id: string
+          folder_name?: string | null
+          id?: string
+          periodic_sync_enabled?: boolean
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string
+          drive_folder_id?: string
+          folder_name?: string | null
+          id?: string
+          periodic_sync_enabled?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drive_sources_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "drive_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       evaluations: {
         Row: {
           bonus_subtotal: number
@@ -184,8 +249,13 @@ export type Database = {
       }
       files: {
         Row: {
+          caminho_relativo: string | null
           created_at: string
           created_by: string | null
+          drive_checksum: string | null
+          drive_file_id: string | null
+          drive_modified_time: string | null
+          drive_seen_at: string | null
           id: string
           mime_type: string | null
           nome: string
@@ -194,8 +264,13 @@ export type Database = {
           tipo_documental: Database["public"]["Enums"]["document_type"]
         }
         Insert: {
+          caminho_relativo?: string | null
           created_at?: string
           created_by?: string | null
+          drive_checksum?: string | null
+          drive_file_id?: string | null
+          drive_modified_time?: string | null
+          drive_seen_at?: string | null
           id?: string
           mime_type?: string | null
           nome: string
@@ -204,8 +279,13 @@ export type Database = {
           tipo_documental?: Database["public"]["Enums"]["document_type"]
         }
         Update: {
+          caminho_relativo?: string | null
           created_at?: string
           created_by?: string | null
+          drive_checksum?: string | null
+          drive_file_id?: string | null
+          drive_modified_time?: string | null
+          drive_seen_at?: string | null
           id?: string
           mime_type?: string | null
           nome?: string
@@ -367,6 +447,153 @@ export type Database = {
           titulo?: string
         }
         Relationships: []
+      }
+      source_folders: {
+        Row: {
+          caminho: string | null
+          created_at: string
+          drive_folder_id: string
+          drive_source_id: string
+          id: string
+          nome_pasta: string
+          proponent_id: string | null
+        }
+        Insert: {
+          caminho?: string | null
+          created_at?: string
+          drive_folder_id: string
+          drive_source_id: string
+          id?: string
+          nome_pasta: string
+          proponent_id?: string | null
+        }
+        Update: {
+          caminho?: string | null
+          created_at?: string
+          drive_folder_id?: string
+          drive_source_id?: string
+          id?: string
+          nome_pasta?: string
+          proponent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "source_folders_drive_source_id_fkey"
+            columns: ["drive_source_id"]
+            isOneToOne: false
+            referencedRelation: "drive_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "source_folders_proponent_id_fkey"
+            columns: ["proponent_id"]
+            isOneToOne: false
+            referencedRelation: "proponents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_changes: {
+        Row: {
+          acao_necessaria: string | null
+          antes: string | null
+          change_type: string
+          depois: string | null
+          detectado_em: string
+          file_id: string | null
+          id: string
+          proponent_id: string | null
+          sync_run_id: string
+        }
+        Insert: {
+          acao_necessaria?: string | null
+          antes?: string | null
+          change_type: string
+          depois?: string | null
+          detectado_em?: string
+          file_id?: string | null
+          id?: string
+          proponent_id?: string | null
+          sync_run_id: string
+        }
+        Update: {
+          acao_necessaria?: string | null
+          antes?: string | null
+          change_type?: string
+          depois?: string | null
+          detectado_em?: string
+          file_id?: string | null
+          id?: string
+          proponent_id?: string | null
+          sync_run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_changes_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sync_changes_proponent_id_fkey"
+            columns: ["proponent_id"]
+            isOneToOne: false
+            referencedRelation: "proponents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sync_changes_sync_run_id_fkey"
+            columns: ["sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_runs: {
+        Row: {
+          drive_source_id: string
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          kind: string
+          started_at: string
+          stats: Json | null
+          status: string
+          triggered_by: string | null
+        }
+        Insert: {
+          drive_source_id: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          kind: string
+          started_at?: string
+          stats?: Json | null
+          status?: string
+          triggered_by?: string | null
+        }
+        Update: {
+          drive_source_id?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          kind?: string
+          started_at?: string
+          stats?: Json | null
+          status?: string
+          triggered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_runs_drive_source_id_fkey"
+            columns: ["drive_source_id"]
+            isOneToOne: false
+            referencedRelation: "drive_sources"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
