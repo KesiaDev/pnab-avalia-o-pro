@@ -9,40 +9,20 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuditoriaRouteImport } from './routes/auditoria'
-import { Route as DocumentosNormativosRouteImport } from './routes/documentos-normativos'
-import { Route as FonteDocumentalRouteImport } from './routes/fonte-documental'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as MudancasRouteImport } from './routes/mudancas'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as MudancasRouteImport } from './routes/mudancas'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as FonteDocumentalRouteImport } from './routes/fonte-documental'
+import { Route as DocumentosNormativosRouteImport } from './routes/documentos-normativos'
+import { Route as AuditoriaRouteImport } from './routes/auditoria'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProponentesIndexRouteImport } from './routes/proponentes/index'
 import { Route as ProponentesIdRouteImport } from './routes/proponentes/$id'
 import { Route as ApiGoogleOauthCallbackRouteImport } from './routes/api/google/oauth/callback'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuditoriaRoute = AuditoriaRouteImport.update({
-  id: '/auditoria',
-  path: '/auditoria',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DocumentosNormativosRoute = DocumentosNormativosRouteImport.update({
-  id: '/documentos-normativos',
-  path: '/documentos-normativos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FonteDocumentalRoute = FonteDocumentalRouteImport.update({
-  id: '/fonte-documental',
-  path: '/fonte-documental',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MudancasRoute = MudancasRouteImport.update({
@@ -50,9 +30,29 @@ const MudancasRoute = MudancasRouteImport.update({
   path: '/mudancas',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FonteDocumentalRoute = FonteDocumentalRouteImport.update({
+  id: '/fonte-documental',
+  path: '/fonte-documental',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocumentosNormativosRoute = DocumentosNormativosRouteImport.update({
+  id: '/documentos-normativos',
+  path: '/documentos-normativos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuditoriaRoute = AuditoriaRouteImport.update({
+  id: '/auditoria',
+  path: '/auditoria',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProponentesIndexRoute = ProponentesIndexRouteImport.update({
@@ -162,39 +162,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auditoria': {
-      id: '/auditoria'
-      path: '/auditoria'
-      fullPath: '/auditoria'
-      preLoaderRoute: typeof AuditoriaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/documentos-normativos': {
-      id: '/documentos-normativos'
-      path: '/documentos-normativos'
-      fullPath: '/documentos-normativos'
-      preLoaderRoute: typeof DocumentosNormativosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/fonte-documental': {
-      id: '/fonte-documental'
-      path: '/fonte-documental'
-      fullPath: '/fonte-documental'
-      preLoaderRoute: typeof FonteDocumentalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mudancas': {
@@ -204,11 +176,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MudancasRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fonte-documental': {
+      id: '/fonte-documental'
+      path: '/fonte-documental'
+      fullPath: '/fonte-documental'
+      preLoaderRoute: typeof FonteDocumentalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/documentos-normativos': {
+      id: '/documentos-normativos'
+      path: '/documentos-normativos'
+      fullPath: '/documentos-normativos'
+      preLoaderRoute: typeof DocumentosNormativosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auditoria': {
+      id: '/auditoria'
+      path: '/auditoria'
+      fullPath: '/auditoria'
+      preLoaderRoute: typeof AuditoriaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/proponentes/': {
