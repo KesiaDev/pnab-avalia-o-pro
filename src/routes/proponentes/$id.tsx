@@ -44,6 +44,7 @@ import {
   AlertTriangle,
   Bot,
   ChevronLeft,
+  ExternalLink,
   FileText,
   ShieldAlert,
   ShieldCheck,
@@ -548,6 +549,30 @@ function DossieTab({ proponentId }: { proponentId: string }) {
   );
 }
 
+function LinkObservation({ text }: { text: string }) {
+  const urlMatch = text.match(/https?:\/\/\S+/);
+  if (!urlMatch) return <span className="text-muted-foreground">{text}</span>;
+  const url = urlMatch[0].replace(/[.,;)\]]+$/, "");
+  const [before, after] = [
+    text.slice(0, text.indexOf(url)),
+    text.slice(text.indexOf(url) + url.length),
+  ];
+  return (
+    <span className="text-muted-foreground">
+      {before}
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-info underline underline-offset-2 hover:text-info/80"
+      >
+        {url}
+      </a>
+      {after}
+    </span>
+  );
+}
+
 const ROBUSTEZ_TONE: Record<string, "success" | "info" | "neutral"> = {
   alta: "success",
   media: "info",
@@ -593,6 +618,12 @@ function EvidenceTable({ proponentId }: { proponentId: string }) {
               {r.trecho_relevante && (
                 <div className="text-xs text-muted-foreground italic mt-0.5">
                   "{r.trecho_relevante}"
+                </div>
+              )}
+              {r.observacoes && (
+                <div className="text-[11px] text-info mt-0.5 flex items-start gap-1">
+                  <ExternalLink className="w-3 h-3 mt-0.5 shrink-0" />
+                  <LinkObservation text={r.observacoes} />
                 </div>
               )}
             </td>

@@ -110,3 +110,48 @@ export function findFileByName(files: ProponentFile[], nome: string): ProponentF
 
 // Tipos de documento liberados para os agentes de mérito (nunca identidade/grp/zimbra).
 export const TIPOS_MERITO = ["formulario", "portfolio", "comprobatorio", "outro"] as const;
+
+// Seção 2.2: links informados pelo proponente podem ser consultados, desde que
+// o sistema registre URL, data/hora do acesso e o que foi analisado. Isto só
+// confirma que o link resolve e captura o título da página — nunca afirma ter
+// "assistido" vídeo ou verificado o conteúdo em si, só a existência do link.
+export interface LinkCheckResult {
+  url: string;
+  acessadoEm: string;
+  status: number | null;
+  titulo: string | null;
+  acessivel: boolean;
+}
+
+export async function checkUrl(url: string): Promise<LinkCheckResult> {
+  const acessadoEm = new Date().toISOString();
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      signal: controller.signal,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; PNABAvaliacaoBot/1.0)" },
+    });
+    clearTimeout(timeout);
+    let titulo: string | null = null;
+    const contentType = res.headers.get("content-type") ?? "";
+    if (contentType.includes("text/html")) {
+      const text = await res.text();
+      const match = text.match(/<title[^>]*>([^<]*)<\/title>/i);
+      titulo = match ? match[1].trim().slice(0, 200) : null;
+    }
+    return { url, acessadoEm, status: res.status, titulo, acessivel: res.ok };
+  } catch {
+    return { url, acessadoEm, status: null, titulo: null, acessivel: false };
+  }
+}
+
+export function describeLinkCheck(check: LinkCheckResult): string {
+  if (check.status == null) {
+    return `Link informado pelo proponente: ${check.url} — não foi possível acessar automaticamente em ${check.acessadoEm} (verificar manualmente).`;
+  }
+  const tituloTxt = check.titulo ? ` Título da página: "${check.titulo}".` : "";
+  return `Link informado pelo proponente: ${check.url} — acessado em ${check.acessadoEm}, status HTTP ${check.status} (${check.acessivel ? "acessível" : "inacessível"}).${tituloTxt} Conteúdo do link (ex.: vídeo) não foi assistido/verificado pelo agente — apenas a existência do link foi confirmada.`;
+}

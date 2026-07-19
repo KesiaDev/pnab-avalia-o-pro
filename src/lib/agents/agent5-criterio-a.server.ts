@@ -6,6 +6,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { callAgent } from "@/lib/ai-gateway.server";
 import {
+  checkUrl,
+  describeLinkCheck,
   fetchProponentFiles,
   finishAgentRun,
   findFileByName,
@@ -25,7 +27,13 @@ nenhuma atuação comprovada em Caxias do Sul = 0 pontos.
 Compare o ano declarado no formulário com o primeiro ano efetivamente comprovado por documento (não
 presuma continuidade por evidência isolada). Se houver divergência entre o declarado e o comprovado,
 ou entre documentos, não decida sozinho — sinalize a divergência. Para cada evidência, cite arquivo e
-página exatos. Quando não houver comprovação suficiente, use a redação padronizada de insuficiência.`;
+página exatos. Quando não houver comprovação suficiente, use a redação padronizada de insuficiência.
+
+Se o documento citar um link (ex.: "Assistir Aqui", URL de vídeo, rede social, matéria online), extraia
+a URL exata no campo "url" da evidência correspondente. Você não tem como acessar o link nem assistir o
+conteúdo — apenas registre que o proponente forneceu esse link como prova; o sistema vai verificar
+separadamente se o link resolve. Nunca marque robustez "alta" para uma evidência cuja única base seja um
+link não verificado por você — use "media".`;
 
 const evidenceItemSchema = z.object({
   arquivo: z.string(),
@@ -35,6 +43,7 @@ const evidenceItemSchema = z.object({
   trecho_relevante: z.string().nullable(),
   ano_da_acao: z.number().int().nullable(),
   local: z.string().nullable(),
+  url: z.string().nullable().optional(),
   robustez: z.enum(["alta", "media", "declaratoria"]),
 });
 
@@ -98,6 +107,7 @@ export async function runAgent5(
 
     for (const ev of data.evidencias) {
       const file = findFileByName(files, ev.arquivo);
+      const observacoes = ev.url ? describeLinkCheck(await checkUrl(ev.url)) : null;
       await supabase.from("evidence").insert({
         proponent_id: proponentId,
         criterion: "A",
@@ -110,6 +120,7 @@ export async function runAgent5(
         trecho_relevante: ev.trecho_relevante,
         ano_da_acao: ev.ano_da_acao,
         local: ev.local,
+        observacoes,
         robustez: ev.robustez,
         criado_por_agente: "agente_5",
       });

@@ -6,6 +6,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { callAgent } from "@/lib/ai-gateway.server";
 import {
+  checkUrl,
+  describeLinkCheck,
   fetchProponentFiles,
   finishAgentRun,
   findFileByName,
@@ -44,7 +46,13 @@ pesquise a internet para inferir o bairro.
 CRITÉRIO G (bônus de ação afirmativa, binário: 5 ou 0 pontos). Depende EXCLUSIVAMENTE da autodeclaração do
 formulário de inscrição (mulher ou pessoa LGBTQIAPN+ para Trajetória Individual). MEI inscrito na
 Trajetória Individual é tratado como pessoa física — mesma regra. Nunca infira a condição por nome, foto
-ou qualquer outro indício — só use o que está expressamente marcado no formulário.`;
+ou qualquer outro indício — só use o que está expressamente marcado no formulário.
+
+Se o documento citar um link (ex.: "Assistir Aqui", URL de vídeo, rede social, matéria online), extraia
+a URL exata no campo "url" da evidência correspondente. Você não tem como acessar o link nem assistir o
+conteúdo — apenas registre que o proponente forneceu esse link como prova; o sistema vai verificar
+separadamente se o link resolve. Nunca marque robustez "alta" para uma evidência cuja única base seja um
+link não verificado por você — use "media".`;
 
 const evidenceItemSchema = z.object({
   arquivo: z.string(),
@@ -54,6 +62,7 @@ const evidenceItemSchema = z.object({
   trecho_relevante: z.string().nullable(),
   local: z.string().nullable(),
   bairro: z.string().nullable(),
+  url: z.string().nullable().optional(),
   robustez: z.enum(["alta", "media", "declaratoria"]),
 });
 
@@ -111,6 +120,7 @@ export async function runAgent7(
 
       for (const ev of result.evidencias) {
         const file = findFileByName(files, ev.arquivo);
+        const observacoes = ev.url ? describeLinkCheck(await checkUrl(ev.url)) : null;
         await supabase.from("evidence").insert({
           proponent_id: proponentId,
           criterion,
@@ -123,6 +133,7 @@ export async function runAgent7(
           trecho_relevante: ev.trecho_relevante,
           local: ev.local,
           bairro: ev.bairro,
+          observacoes,
           robustez: ev.robustez,
           criado_por_agente: "agente_7",
         });
