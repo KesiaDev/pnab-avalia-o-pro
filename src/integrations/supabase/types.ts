@@ -14,6 +14,85 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_outputs: {
+        Row: {
+          agent_run_id: string
+          created_at: string
+          id: string
+          output_type: string
+          payload: Json
+        }
+        Insert: {
+          agent_run_id: string
+          created_at?: string
+          id?: string
+          output_type: string
+          payload: Json
+        }
+        Update: {
+          agent_run_id?: string
+          created_at?: string
+          id?: string
+          output_type?: string
+          payload?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_outputs_agent_run_id_fkey"
+            columns: ["agent_run_id"]
+            isOneToOne: false
+            referencedRelation: "agent_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_runs: {
+        Row: {
+          agent_name: string
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          model: string | null
+          prompt_version: string | null
+          proponent_id: string | null
+          started_at: string
+          status: string
+          triggered_by: string | null
+        }
+        Insert: {
+          agent_name: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          model?: string | null
+          prompt_version?: string | null
+          proponent_id?: string | null
+          started_at?: string
+          status?: string
+          triggered_by?: string | null
+        }
+        Update: {
+          agent_name?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          model?: string | null
+          prompt_version?: string | null
+          proponent_id?: string | null
+          started_at?: string
+          status?: string
+          triggered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_runs_proponent_id_fkey"
+            columns: ["proponent_id"]
+            isOneToOne: false
+            referencedRelation: "proponents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -93,6 +172,78 @@ export type Database = {
             columns: ["proponent_id"]
             isOneToOne: false
             referencedRelation: "proponents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cycle1_awardees: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          origem_edital: string
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          origem_edital?: string
+          tipo?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          origem_edital?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
+      document_classifications: {
+        Row: {
+          confianca: number | null
+          created_at: string
+          criado_por_agente: string
+          file_id: string
+          file_version_id: string | null
+          id: string
+          justificativa: string | null
+          tipo_documental: Database["public"]["Enums"]["document_type"]
+        }
+        Insert: {
+          confianca?: number | null
+          created_at?: string
+          criado_por_agente?: string
+          file_id: string
+          file_version_id?: string | null
+          id?: string
+          justificativa?: string | null
+          tipo_documental: Database["public"]["Enums"]["document_type"]
+        }
+        Update: {
+          confianca?: number | null
+          created_at?: string
+          criado_por_agente?: string
+          file_id?: string
+          file_version_id?: string | null
+          id?: string
+          justificativa?: string | null
+          tipo_documental?: Database["public"]["Enums"]["document_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_classifications_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_classifications_file_version_id_fkey"
+            columns: ["file_version_id"]
+            isOneToOne: false
+            referencedRelation: "file_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -206,6 +357,116 @@ export type Database = {
           },
         ]
       }
+      evidence: {
+        Row: {
+          ano_da_acao: number | null
+          bairro: string | null
+          created_at: string
+          criado_por_agente: string
+          criterion: string
+          data_da_acao: string | null
+          descricao_factual: string
+          duplicata_de: string | null
+          file_id: string | null
+          file_version_id: string | null
+          id: string
+          local: string | null
+          observacoes: string | null
+          pagina_final: number | null
+          pagina_inicial: number | null
+          parceiros: string | null
+          proponent_id: string
+          publico: string | null
+          regiao_administrativa: string | null
+          resultado_comprovado: string | null
+          robustez: Database["public"]["Enums"]["evidence_robustez"]
+          tipo_documental: Database["public"]["Enums"]["document_type"] | null
+          trecho_relevante: string | null
+          validado_pelo_humano: boolean
+        }
+        Insert: {
+          ano_da_acao?: number | null
+          bairro?: string | null
+          created_at?: string
+          criado_por_agente: string
+          criterion: string
+          data_da_acao?: string | null
+          descricao_factual: string
+          duplicata_de?: string | null
+          file_id?: string | null
+          file_version_id?: string | null
+          id?: string
+          local?: string | null
+          observacoes?: string | null
+          pagina_final?: number | null
+          pagina_inicial?: number | null
+          parceiros?: string | null
+          proponent_id: string
+          publico?: string | null
+          regiao_administrativa?: string | null
+          resultado_comprovado?: string | null
+          robustez: Database["public"]["Enums"]["evidence_robustez"]
+          tipo_documental?: Database["public"]["Enums"]["document_type"] | null
+          trecho_relevante?: string | null
+          validado_pelo_humano?: boolean
+        }
+        Update: {
+          ano_da_acao?: number | null
+          bairro?: string | null
+          created_at?: string
+          criado_por_agente?: string
+          criterion?: string
+          data_da_acao?: string | null
+          descricao_factual?: string
+          duplicata_de?: string | null
+          file_id?: string | null
+          file_version_id?: string | null
+          id?: string
+          local?: string | null
+          observacoes?: string | null
+          pagina_final?: number | null
+          pagina_inicial?: number | null
+          parceiros?: string | null
+          proponent_id?: string
+          publico?: string | null
+          regiao_administrativa?: string | null
+          resultado_comprovado?: string | null
+          robustez?: Database["public"]["Enums"]["evidence_robustez"]
+          tipo_documental?: Database["public"]["Enums"]["document_type"] | null
+          trecho_relevante?: string | null
+          validado_pelo_humano?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_duplicata_de_fkey"
+            columns: ["duplicata_de"]
+            isOneToOne: false
+            referencedRelation: "evidence"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_file_version_id_fkey"
+            columns: ["file_version_id"]
+            isOneToOne: false
+            referencedRelation: "file_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_proponent_id_fkey"
+            columns: ["proponent_id"]
+            isOneToOne: false
+            referencedRelation: "proponents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       file_versions: {
         Row: {
           created_at: string
@@ -296,6 +557,95 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "files_proponent_id_fkey"
+            columns: ["proponent_id"]
+            isOneToOne: false
+            referencedRelation: "proponents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flags: {
+        Row: {
+          created_at: string
+          criado_por_agente: string | null
+          descricao: string
+          file_id: string | null
+          id: string
+          pagina: number | null
+          proponent_id: string
+          status: string
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          criado_por_agente?: string | null
+          descricao: string
+          file_id?: string | null
+          id?: string
+          pagina?: number | null
+          proponent_id: string
+          status?: string
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          criado_por_agente?: string | null
+          descricao?: string
+          file_id?: string | null
+          id?: string
+          pagina?: number | null
+          proponent_id?: string
+          status?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flags_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flags_proponent_id_fkey"
+            columns: ["proponent_id"]
+            isOneToOne: false
+            referencedRelation: "proponents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pareceres: {
+        Row: {
+          aprovado_pela_avaliadora: boolean
+          created_at: string
+          gerado_por_agente: string
+          id: string
+          proponent_id: string
+          texto: string
+          versao: number
+        }
+        Insert: {
+          aprovado_pela_avaliadora?: boolean
+          created_at?: string
+          gerado_por_agente?: string
+          id?: string
+          proponent_id: string
+          texto: string
+          versao?: number
+        }
+        Update: {
+          aprovado_pela_avaliadora?: boolean
+          created_at?: string
+          gerado_por_agente?: string
+          id?: string
+          proponent_id?: string
+          texto?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pareceres_proponent_id_fkey"
             columns: ["proponent_id"]
             isOneToOne: false
             referencedRelation: "proponents"
@@ -643,6 +993,7 @@ export type Database = {
         | "grp"
         | "zimbra"
         | "outro"
+      evidence_robustez: "alta" | "media" | "declaratoria"
       normative_status: "vigente" | "arquivado"
       proponent_status:
         | "nao_importado"
@@ -799,6 +1150,7 @@ export const Constants = {
         "zimbra",
         "outro",
       ],
+      evidence_robustez: ["alta", "media", "declaratoria"],
       normative_status: ["vigente", "arquivado"],
       proponent_status: [
         "nao_importado",
