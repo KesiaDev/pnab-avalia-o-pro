@@ -713,6 +713,7 @@ export type Database = {
           id: string
           nome_canonico: string
           status: Database["public"]["Enums"]["proponent_status"]
+          tipo_proponente: Database["public"]["Enums"]["tipo_proponente"] | null
         }
         Insert: {
           atualizado_em?: string
@@ -723,6 +724,9 @@ export type Database = {
           id?: string
           nome_canonico: string
           status?: Database["public"]["Enums"]["proponent_status"]
+          tipo_proponente?:
+            | Database["public"]["Enums"]["tipo_proponente"]
+            | null
         }
         Update: {
           atualizado_em?: string
@@ -733,6 +737,9 @@ export type Database = {
           id?: string
           nome_canonico?: string
           status?: Database["public"]["Enums"]["proponent_status"]
+          tipo_proponente?:
+            | Database["public"]["Enums"]["tipo_proponente"]
+            | null
         }
         Relationships: []
       }
@@ -1008,6 +1015,7 @@ export type Database = {
         | "reaberto"
         | "finalizado"
         | "pendencia_administrativa"
+      tipo_proponente: "pessoa_fisica" | "pessoa_juridica_ou_coletivo"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1166,6 +1174,7 @@ export const Constants = {
         "finalizado",
         "pendencia_administrativa",
       ],
+      tipo_proponente: ["pessoa_fisica", "pessoa_juridica_ou_coletivo"],
     },
   },
 } as const
