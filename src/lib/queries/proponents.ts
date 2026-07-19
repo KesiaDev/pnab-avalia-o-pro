@@ -93,14 +93,18 @@ export function useUpdateCriterionScore(proponentId: string) {
       id: string;
       approved_score: number | null;
       human_review_required: boolean;
+      justification?: string;
     }) => {
-      const { error } = await supabase
-        .from("criterion_scores")
-        .update({
-          approved_score: params.approved_score,
-          human_review_required: params.human_review_required,
-        })
-        .eq("id", params.id);
+      const patch: {
+        approved_score: number | null;
+        human_review_required: boolean;
+        justification?: string;
+      } = {
+        approved_score: params.approved_score,
+        human_review_required: params.human_review_required,
+      };
+      if (params.justification !== undefined) patch.justification = params.justification;
+      const { error } = await supabase.from("criterion_scores").update(patch).eq("id", params.id);
       if (error) throw error;
     },
     onSuccess: () => {

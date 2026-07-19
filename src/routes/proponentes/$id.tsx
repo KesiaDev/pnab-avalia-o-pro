@@ -313,18 +313,28 @@ function CriterionRow({
   saving,
 }: {
   data: CriterionScoreRow;
-  onSave: (patch: { approved_score: number | null; human_review_required: boolean }) => void;
+  onSave: (patch: {
+    approved_score: number | null;
+    human_review_required: boolean;
+    justification?: string;
+  }) => void;
   saving: boolean;
 }) {
   const [approved, setApproved] = useState<number | "">(data.approved_score ?? "");
   const [pending, setPending] = useState(data.human_review_required);
+  const [editingText, setEditingText] = useState(false);
+  const [justification, setJustification] = useState(data.justification ?? "");
 
   useEffect(() => {
     setApproved(data.approved_score ?? "");
     setPending(data.human_review_required);
-  }, [data.approved_score, data.human_review_required]);
+    setJustification(data.justification ?? "");
+  }, [data.approved_score, data.human_review_required, data.justification]);
 
-  const dirty = approved !== (data.approved_score ?? "") || pending !== data.human_review_required;
+  const dirty =
+    approved !== (data.approved_score ?? "") ||
+    pending !== data.human_review_required ||
+    (editingText && justification !== (data.justification ?? ""));
 
   return (
     <Card className="border-border">
@@ -336,9 +346,30 @@ function CriterionRow({
               <div className="font-medium">{CRITERION_LABEL[data.criterion]}</div>
               <div className="text-xs text-muted-foreground">máx. {data.max_score}</div>
             </div>
-            {data.justification && (
-              <p className="text-xs text-muted-foreground mt-1">{data.justification}</p>
+            {editingText ? (
+              <Textarea
+                value={justification}
+                onChange={(e) => setJustification(e.target.value)}
+                className="mt-1 text-xs min-h-[90px]"
+                placeholder="Justificativa do critério…"
+              />
+            ) : (
+              data.justification && (
+                <p className="text-xs text-muted-foreground mt-1">{data.justification}</p>
+              )
             )}
+            <div className="flex items-center gap-3 mt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (editingText) setJustification(data.justification ?? "");
+                  setEditingText((v) => !v);
+                }}
+                className="text-[11px] px-2 py-1 rounded border border-border text-muted-foreground hover:bg-secondary transition-colors"
+              >
+                {editingText ? "cancelar edição do texto" : "editar avaliação"}
+              </button>
+            </div>
             <div className="flex items-center gap-3 mt-3">
               <label className="text-xs text-muted-foreground">Proposta agentes</label>
               <span className="font-mono text-sm tabular-nums w-12 text-right">
@@ -370,12 +401,14 @@ function CriterionRow({
                 variant="outline"
                 className="ml-auto"
                 disabled={!dirty || saving}
-                onClick={() =>
+                onClick={() => {
                   onSave({
                     approved_score: approved === "" ? null : approved,
                     human_review_required: pending,
-                  })
-                }
+                    ...(editingText ? { justification } : {}),
+                  });
+                  setEditingText(false);
+                }}
               >
                 Salvar
               </Button>
