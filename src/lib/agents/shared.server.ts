@@ -64,7 +64,7 @@ export interface ProponentFile {
 export async function fetchProponentFiles(
   supabase: SupabaseClient<Database>,
   proponentId: string,
-  tiposPermitidos?: string[],
+  tiposPermitidos?: Database["public"]["Enums"]["document_type"][],
 ): Promise<ProponentFile[]> {
   let query = supabase.from("files").select("*, file_versions(*)").eq("proponent_id", proponentId);
   if (tiposPermitidos) {
@@ -109,7 +109,7 @@ export function findFileByName(files: ProponentFile[], nome: string): ProponentF
 }
 
 // Tipos de documento liberados para os agentes de mérito (nunca identidade/grp/zimbra).
-export const TIPOS_MERITO = ["formulario", "portfolio", "comprobatorio", "outro"] as const;
+export const TIPOS_MERITO: Database["public"]["Enums"]["document_type"][] = ["formulario", "portfolio", "comprobatorio", "outro"];
 
 // Seção 2.2: links informados pelo proponente podem ser consultados, desde que
 // o sistema registre URL, data/hora do acesso e o que foi analisado. Isto só
