@@ -134,7 +134,9 @@ export const handleGoogleOAuthCallback = createServerFn({ method: "GET" })
       }
 
       const { getConnectedAccountEmail } = await import("@/lib/google-drive-api.server");
-      const email = await getConnectedAccountEmail(tokens.access_token).catch(() => null);
+      const email = await getConnectedAccountEmail(tokens.access_token).catch(
+        (e) => `(falha ao buscar e-mail: ${e instanceof Error ? e.message : String(e)})`,
+      );
 
       const encrypted = bufferToPgBytea(encryptRefreshToken(tokens.refresh_token));
       const { error: insertError } = await supabaseAdmin.from("drive_connections").insert({
