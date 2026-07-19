@@ -499,7 +499,9 @@ function DossieTab({ proponentId }: { proponentId: string }) {
             </Select>
           </div>
           <p className="text-[11px] text-muted-foreground mt-2">
-            Define qual tabela de bônus F/G da ficha oficial é preenchida na geração automática.
+            Detectado automaticamente pelo Agente 3 a partir do formulário de inscrição, GRP e
+            protocolo Zimbra ao "Executar agentes" — corrija aqui se necessário. Define qual tabela
+            de bônus F/G da ficha oficial é preenchida na geração automática.
           </p>
         </CardContent>
       </Card>

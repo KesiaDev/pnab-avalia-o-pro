@@ -35,7 +35,15 @@ Tipos de documento possíveis (Seção 7 do prompt-mestre):
 
 Para cada arquivo anexado, identifique o tipo e uma justificativa curta baseada no conteúdo real.
 Se encontrar o nome completo do proponente em algum documento de identidade, GRP ou Zimbra, registre
-esse nome e de onde veio — não decida qual nome é o correto, apenas relate o que encontrou em cada fonte.`;
+esse nome e de onde veio — não decida qual nome é o correto, apenas relate o que encontrou em cada fonte.
+
+Determine também o tipo de proponente, usando apenas o que está declarado no formulário de inscrição, no
+GRP e no protocolo Zimbra: "pessoa_fisica" quando a inscrição é em nome de pessoa física (CPF, nome civil)
+— MEI inscrito na Trajetória Individual é tratado como pessoa física, mesma regra usada nos demais
+critérios; "pessoa_juridica_ou_coletivo" quando a inscrição é em nome de pessoa jurídica com CNPJ, razão
+social, ou coletivo/grupo cultural sem CNPJ representado por terceiro. Se os documentos não deixarem isso
+claro, ou houver indício conflitante entre eles, marque "tipo_proponente_ambiguo": true e não arrisque um
+palpite — isso vai para revisão humana.`;
 
 const classificationItemSchema = z.object({
   arquivo: z.string(),
@@ -60,6 +68,9 @@ const nomeEncontradoSchema = z.object({
 const responseSchema = z.object({
   classificacoes: z.array(classificationItemSchema),
   nomes_encontrados: z.array(nomeEncontradoSchema).default([]),
+  tipo_proponente: z.enum(["pessoa_fisica", "pessoa_juridica_ou_coletivo"]).nullable(),
+  tipo_proponente_ambiguo: z.boolean().default(false),
+  tipo_proponente_justificativa: z.string().nullable(),
 });
 
 export async function runAgent3(
@@ -85,7 +96,10 @@ export async function runAgent3(
       systemPrompt: SYSTEM_PROMPT,
       userPrompt: `Classifique cada um dos ${files.length} arquivos anexados. Responda em JSON:
 {"classificacoes": [{"arquivo": "nome exato do arquivo", "tipo_documental": "...", "confianca": 0.0, "justificativa": "..."}],
- "nomes_encontrados": [{"nome": "nome completo encontrado", "fonte": "ex: RG, GRP, Zimbra"}]}`,
+ "nomes_encontrados": [{"nome": "nome completo encontrado", "fonte": "ex: RG, GRP, Zimbra"}],
+ "tipo_proponente": "pessoa_fisica" ou "pessoa_juridica_ou_coletivo" ou null,
+ "tipo_proponente_ambiguo": true/false,
+ "tipo_proponente_justificativa": "..." ou null}`,
       files: toAgentFiles(files),
       responseSchema,
     });
@@ -113,9 +127,29 @@ export async function runAgent3(
 
     const { data: proponent } = await supabase
       .from("proponents")
-      .select("nome_canonico")
+      .select("nome_canonico, tipo_proponente")
       .eq("id", proponentId)
       .single();
+
+    // Só grava se ainda não houver escolha registrada — nunca sobrescreve uma
+    // definição manual (ex.: correção da avaliadora num caso de MEI ambíguo).
+    if (!proponent?.tipo_proponente) {
+      if (data.tipo_proponente && !data.tipo_proponente_ambiguo) {
+        await supabase
+          .from("proponents")
+          .update({ tipo_proponente: data.tipo_proponente })
+          .eq("id", proponentId);
+      } else {
+        await supabase.from("flags").insert({
+          proponent_id: proponentId,
+          tipo: "outro",
+          descricao:
+            data.tipo_proponente_justificativa ??
+            "Não foi possível determinar com segurança se o proponente é pessoa física ou jurídica/coletivo a partir do formulário, GRP e Zimbra — definir manualmente na aba Dossiê.",
+          criado_por_agente: "agente_3",
+        });
+      }
+    }
     const { data: existingAliases } = await supabase
       .from("proponent_aliases")
       .select("alias")
