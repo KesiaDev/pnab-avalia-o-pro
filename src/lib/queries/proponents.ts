@@ -1,6 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Tables, TablesInsert } from "@/integrations/supabase/types";
+import type { Tables, TablesInsert, Enums } from "@/integrations/supabase/types";
+import { generateFichaFn } from "@/lib/ficha-actions";
+
+export type TipoProponente = Enums<"tipo_proponente">;
 
 export type ProponentRow = Tables<"proponents">;
 export type EvaluationRow = Tables<"evaluations">;
@@ -134,6 +137,42 @@ export function useApproveEvaluation(proponentId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["proponents", proponentId] });
       queryClient.invalidateQueries({ queryKey: ["proponents"] });
+    },
+  });
+}
+
+export function useUpdateProponentTipo(proponentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (tipo_proponente: TipoProponente) => {
+      const { error } = await supabase
+        .from("proponents")
+        .update({ tipo_proponente })
+        .eq("id", proponentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["proponents", proponentId] });
+      queryClient.invalidateQueries({ queryKey: ["proponents"] });
+    },
+  });
+}
+
+// Baixa a ficha oficial (.odt) já preenchida — o servidor devolve o binário em
+// base64 (server functions do TanStack Start só trafegam JSON), e aqui a
+// gente decodifica e dispara o download no navegador.
+export function useGenerateFicha(proponentId: string) {
+  return useMutation({
+    mutationFn: async () => {
+      const result = await generateFichaFn({ data: { proponentId } });
+      const bytes = Uint8Array.from(atob(result.base64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: "application/vnd.oasis.opendocument.text" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = result.filename;
+      a.click();
+      URL.revokeObjectURL(url);
     },
   });
 }

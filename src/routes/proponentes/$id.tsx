@@ -26,10 +26,13 @@ import {
   useApproveEvaluation,
   useCriterionScores,
   useFiles,
+  useGenerateFicha,
   useProponent,
   useUpdateCriterionScore,
+  useUpdateProponentTipo,
   useUploadFile,
   type CriterionScoreRow,
+  type TipoProponente,
 } from "@/lib/queries/proponents";
 import {
   useEvidence,
@@ -243,7 +246,12 @@ function ProponentDetail() {
         </TabsContent>
 
         <TabsContent value="parecer">
-          <ParecerTab proponentId={id} hasPending={hasPending} />
+          <ParecerTab
+            proponentId={id}
+            hasPending={hasPending}
+            exportReady={p.evaluations?.export_ready ?? false}
+            tipoProponente={p.tipo_proponente ?? null}
+          />
         </TabsContent>
 
         <TabsContent value="auditoria">
@@ -437,6 +445,8 @@ const TIPO_DOCUMENTAL_OPTIONS: ImportedFile["tipo"][] = [
 ];
 
 function DossieTab({ proponentId }: { proponentId: string }) {
+  const { data: p } = useProponent(proponentId);
+  const updateTipo = useUpdateProponentTipo(proponentId);
   const { data: files, isLoading } = useFiles(proponentId);
   const upload = useUploadFile(proponentId);
   const [file, setFile] = useState<File | null>(null);
@@ -451,6 +461,34 @@ function DossieTab({ proponentId }: { proponentId: string }) {
 
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-serif text-lg">Dados do proponente</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-1.5 max-w-xs">
+            <Label htmlFor="tipo-proponente">Tipo de proponente</Label>
+            <Select
+              value={p?.tipo_proponente ?? undefined}
+              onValueChange={(v) => updateTipo.mutate(v as TipoProponente)}
+            >
+              <SelectTrigger id="tipo-proponente">
+                <SelectValue placeholder="Selecione…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pessoa_fisica">Pessoa física</SelectItem>
+                <SelectItem value="pessoa_juridica_ou_coletivo">
+                  Pessoa jurídica ou coletivo/grupo sem CNPJ
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">
+            Define qual tabela de bônus F/G da ficha oficial é preenchida na geração automática.
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="font-serif text-lg flex items-center gap-2">
@@ -637,13 +675,45 @@ function EvidenceTable({ proponentId }: { proponentId: string }) {
   );
 }
 
-function ParecerTab({ proponentId, hasPending }: { proponentId: string; hasPending: boolean }) {
+function ParecerTab({
+  proponentId,
+  hasPending,
+  exportReady,
+  tipoProponente,
+}: {
+  proponentId: string;
+  hasPending: boolean;
+  exportReady: boolean;
+  tipoProponente: TipoProponente | null;
+}) {
   const { data: parecer, isLoading } = useLatestParecer(proponentId);
+  const generateFicha = useGenerateFicha(proponentId);
+
+  const podeGerar = exportReady && !!tipoProponente && !!parecer;
+  const motivoBloqueio = !parecer
+    ? "gere a minuta primeiro"
+    : !exportReady
+      ? "aprove a avaliação sem pendências abertas"
+      : !tipoProponente
+        ? 'defina o "tipo de proponente" na aba Dossiê'
+        : null;
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between gap-4">
         <CardTitle className="font-serif text-lg">Minuta de parecer</CardTitle>
+        {parecer && (
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={!podeGerar || generateFicha.isPending}
+            onClick={() => generateFicha.mutate()}
+            title={motivoBloqueio ?? undefined}
+          >
+            <FileText className="w-4 h-4 mr-1.5" />
+            {generateFicha.isPending ? "Gerando ficha…" : "Gerar ficha preenchida"}
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -660,6 +730,16 @@ function ParecerTab({ proponentId, hasPending }: { proponentId: string; hasPendi
               {hasPending &&
                 " · nota individual ainda é prévia provisória enquanto houver pendência humana"}
             </p>
+            {motivoBloqueio && (
+              <p className="text-[11px] text-warning-foreground mt-1">
+                Ficha ainda não disponível: {motivoBloqueio}.
+              </p>
+            )}
+            {generateFicha.isError && (
+              <p className="text-xs text-destructive mt-1">
+                {(generateFicha.error as Error | undefined)?.message ?? "Falha ao gerar a ficha."}
+              </p>
+            )}
           </>
         ) : (
           <div className="text-sm text-muted-foreground">
