@@ -7,6 +7,7 @@ import {
   runBaselineFn,
   runSyncFn,
   disconnectGoogleFn,
+  diagnoseDriveFn,
 } from "@/lib/drive-actions";
 
 export type DriveConnection = Tables<"drive_connections">;
@@ -121,6 +122,12 @@ export function useSaveDriveSource() {
     mutationFn: async (input: { connectionId: string; folderUrlOrId: string }) =>
       saveDriveSource({ data: input }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["drive_sources"] }),
+  });
+}
+
+export function useDiagnoseDrive() {
+  return useMutation({
+    mutationFn: async (driveSourceId: string) => diagnoseDriveFn({ data: { driveSourceId } }),
   });
 }
 

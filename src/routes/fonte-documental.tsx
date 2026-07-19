@@ -10,6 +10,7 @@ import { AlertTriangle, CheckCircle2, FolderOpen, Info, ShieldCheck } from "luci
 import {
   useActiveDriveConnection,
   useDriveSource,
+  useDiagnoseDrive,
   useDisconnectGoogle,
   useLatestSyncRun,
   useRunBaseline,
@@ -54,6 +55,7 @@ function FonteDocumental() {
   const saveSource = useSaveDriveSource();
   const runBaseline = useRunBaseline();
   const runSync = useRunSync();
+  const diagnose = useDiagnoseDrive();
 
   const [folderInput, setFolderInput] = useState("");
   const [changingFolder, setChangingFolder] = useState(false);
@@ -214,6 +216,13 @@ function FonteDocumental() {
                   >
                     {runSync.isPending ? "Sincronizando…" : "Sincronizar agora"}
                   </Button>
+                  <Button
+                    variant="ghost"
+                    disabled={diagnose.isPending}
+                    onClick={() => diagnose.mutate(source.id)}
+                  >
+                    {diagnose.isPending ? "Diagnosticando…" : "Diagnóstico Drive"}
+                  </Button>
                 </div>
               )}
               {(runBaseline.isError || runSync.isError) && (
@@ -221,6 +230,11 @@ function FonteDocumental() {
                   {(runBaseline.error as Error | undefined)?.message ??
                     (runSync.error as Error | undefined)?.message}
                 </p>
+              )}
+              {diagnose.data && (
+                <pre className="mt-3 max-h-96 overflow-auto rounded-md bg-muted/60 p-3 text-[10px] leading-snug">
+                  {JSON.stringify(diagnose.data, null, 2)}
+                </pre>
               )}
             </CardContent>
           </Card>

@@ -36,6 +36,80 @@ export async function getConnectedAccountEmail(accessToken: string): Promise<str
   return data.user?.emailAddress ?? null;
 }
 
+// Diagnóstico temporário: roda várias variações da consulta de listagem
+// direto contra a API e devolve o resultado cru de cada uma, pra descobrir
+// por que uma pasta com conteúdo real e visível no navegador está
+// retornando vazio via files.list.
+export async function diagnoseDriveAccess(accessToken: string, folderId: string) {
+  async function probeFiles(label: string, query: Record<string, string>) {
+    const params = new URLSearchParams({
+      fields: "files(id,name,mimeType), nextPageToken",
+      pageSize: "50",
+      ...query,
+    });
+    try {
+      const res = await fetch(`${DRIVE_API}/files?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const body = await res.text();
+      return { label, status: res.status, ok: res.ok, body: body.slice(0, 2000) };
+    } catch (err) {
+      return {
+        label,
+        status: 0,
+        ok: false,
+        body: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  async function probeAbout() {
+    try {
+      const res = await fetch(`${DRIVE_API}/about?fields=user,storageQuota`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const body = await res.text();
+      return {
+        label: "about?fields=user,storageQuota",
+        status: res.status,
+        ok: res.ok,
+        body: body.slice(0, 1000),
+      };
+    } catch (err) {
+      return {
+        label: "about?fields=user,storageQuota",
+        status: 0,
+        ok: false,
+        body: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  const [bare, withAllDrives, withCorporaAllDrives, recentFilesNoFilter, aboutMe] =
+    await Promise.all([
+      probeFiles("q=in-parents (sem flags)", { q: `'${folderId}' in parents and trashed = false` }),
+      probeFiles("q=in-parents + supportsAllDrives + includeItemsFromAllDrives", {
+        q: `'${folderId}' in parents and trashed = false`,
+        supportsAllDrives: "true",
+        includeItemsFromAllDrives: "true",
+      }),
+      probeFiles("q=in-parents + corpora=allDrives", {
+        q: `'${folderId}' in parents and trashed = false`,
+        supportsAllDrives: "true",
+        includeItemsFromAllDrives: "true",
+        corpora: "allDrives",
+      }),
+      probeFiles("lista geral sem filtro de parents (o que a conta enxerga por padrão)", {
+        q: `trashed = false`,
+        supportsAllDrives: "true",
+        includeItemsFromAllDrives: "true",
+      }),
+      probeAbout(),
+    ]);
+
+  return { folderId, bare, withAllDrives, withCorporaAllDrives, recentFilesNoFilter, aboutMe };
+}
+
 export async function getFileMetadata(accessToken: string, fileId: string): Promise<DriveFile> {
   const fields =
     "id, name, mimeType, parents, size, modifiedTime, createdTime, md5Checksum, webViewLink, trashed";
