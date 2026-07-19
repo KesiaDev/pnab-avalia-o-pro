@@ -3,6 +3,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Json } from "@/integrations/supabase/types";
 
 async function requireAdministradora(supabase: SupabaseClient, userId: string) {
   const { data, error } = await supabase.rpc("has_role", {
