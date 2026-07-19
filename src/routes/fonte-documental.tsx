@@ -56,6 +56,7 @@ function FonteDocumental() {
   const runSync = useRunSync();
 
   const [folderInput, setFolderInput] = useState("");
+  const [changingFolder, setChangingFolder] = useState(false);
 
   const stats = latestRun?.stats as
     | {
@@ -90,7 +91,9 @@ function FonteDocumental() {
           <AlertDescription className="text-xs text-muted-foreground">
             {ERROR_LABEL[search.google_error] ?? search.google_error}
             {search.google_error_detail && (
-              <div className="mt-1 font-mono text-[11px] opacity-80">{search.google_error_detail}</div>
+              <div className="mt-1 font-mono text-[11px] opacity-80">
+                {search.google_error_detail}
+              </div>
             )}
           </AlertDescription>
         </Alert>
@@ -143,12 +146,17 @@ function FonteDocumental() {
               {connection && (
                 <div className="space-y-2">
                   <Label>Pasta selecionada</Label>
-                  {source ? (
-                    <Input
-                      value={`${source.folder_name} (${source.drive_folder_id})`}
-                      readOnly
-                      className="bg-muted/40 font-mono text-xs"
-                    />
+                  {source && !changingFolder ? (
+                    <div className="flex gap-2">
+                      <Input
+                        value={`${source.folder_name} (${source.drive_folder_id})`}
+                        readOnly
+                        className="bg-muted/40 font-mono text-xs"
+                      />
+                      <Button variant="outline" onClick={() => setChangingFolder(true)}>
+                        Trocar pasta
+                      </Button>
+                    </div>
                   ) : (
                     <div className="flex gap-2">
                       <Input
@@ -160,14 +168,24 @@ function FonteDocumental() {
                         variant="outline"
                         disabled={!folderInput || saveSource.isPending}
                         onClick={() =>
-                          saveSource.mutate({
-                            connectionId: connection.id,
-                            folderUrlOrId: folderInput,
-                          })
+                          saveSource.mutate(
+                            { connectionId: connection.id, folderUrlOrId: folderInput },
+                            {
+                              onSuccess: () => {
+                                setChangingFolder(false);
+                                setFolderInput("");
+                              },
+                            },
+                          )
                         }
                       >
                         Salvar pasta
                       </Button>
+                      {source && (
+                        <Button variant="ghost" onClick={() => setChangingFolder(false)}>
+                          Cancelar
+                        </Button>
+                      )}
                     </div>
                   )}
                   <p className="text-xs text-muted-foreground">
