@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, Enums } from "@/integrations/supabase/types";
 import { generateFichaFn } from "@/lib/ficha-actions";
+import { generateParecerFn } from "@/lib/agent-actions";
 
 export type TipoProponente = Enums<"tipo_proponente">;
 
@@ -133,10 +134,41 @@ export function useApproveEvaluation(proponentId: string) {
         .update({ status: "aprovado_pela_avaliadora" })
         .eq("id", proponentId);
       if (statusError) throw statusError;
+
+      // A minuta de parecer só é escrita agora, com as notas finais — gerá-la
+      // antes deixava o texto desatualizado assim que a avaliadora ajustava
+      // alguma nota depois da proposta inicial dos agentes. Se essa etapa
+      // falhar (ex.: instabilidade do modelo), a aprovação já está valendo;
+      // a minuta pode ser gerada de novo manualmente na aba Minuta de parecer.
+      let parecerError: string | null = null;
+      try {
+        await generateParecerFn({ data: { proponentId } });
+      } catch (err) {
+        parecerError = err instanceof Error ? err.message : String(err);
+      }
+      return { parecerError };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["proponents", proponentId] });
       queryClient.invalidateQueries({ queryKey: ["proponents"] });
+      queryClient.invalidateQueries({ queryKey: ["pareceres", proponentId] });
+      queryClient.invalidateQueries({ queryKey: ["flags", proponentId] });
+    },
+  });
+}
+
+// Regeneração manual da minuta (agente 8) — útil se a geração automática ao
+// aprovar falhar, ou se a avaliadora quiser uma nova versão depois de reabrir
+// e ajustar notas sem passar de novo por "Executar agentes".
+export function useGenerateParecer(proponentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      return generateParecerFn({ data: { proponentId } });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pareceres", proponentId] });
+      queryClient.invalidateQueries({ queryKey: ["flags", proponentId] });
     },
   });
 }

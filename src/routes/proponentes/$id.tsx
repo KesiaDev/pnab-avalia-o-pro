@@ -27,6 +27,7 @@ import {
   useCriterionScores,
   useFiles,
   useGenerateFicha,
+  useGenerateParecer,
   useProponent,
   useUpdateCriterionScore,
   useUpdateProponentTipo,
@@ -180,10 +181,10 @@ function ProponentDetail() {
                   </Button>
                   <Button
                     size="sm"
-                    disabled={hasPending}
+                    disabled={hasPending || approveEvaluation.isPending}
                     onClick={() => approveEvaluation.mutate()}
                   >
-                    Aprovar avaliação
+                    {approveEvaluation.isPending ? "Aprovando…" : "Aprovar avaliação"}
                   </Button>
                   <Button size="sm" variant="outline" onClick={handleReopen}>
                     Reabrir análise
@@ -196,6 +197,13 @@ function ProponentDetail() {
           {runAgents.isError && (
             <p className="text-xs text-destructive">
               {(runAgents.error as Error | undefined)?.message ?? "Falha ao executar os agentes."}
+            </p>
+          )}
+
+          {approveEvaluation.isSuccess && approveEvaluation.data.parecerError && (
+            <p className="text-xs text-warning-foreground">
+              Avaliação aprovada, mas a minuta de parecer não pôde ser gerada automaticamente (
+              {approveEvaluation.data.parecerError}). Gere manualmente na aba "Minuta de parecer".
             </p>
           )}
 
@@ -391,7 +399,14 @@ function CriterionRow({
                 min={0}
                 max={data.max_score}
                 value={approved}
-                onChange={(e) => setApproved(e.target.value === "" ? "" : Number(e.target.value))}
+                onChange={(e) => {
+                  const value = e.target.value === "" ? "" : Number(e.target.value);
+                  setApproved(value);
+                  // Definir a nota da avaliadora é o ato de revisão humana em
+                  // si — fecha a pendência automaticamente. Ainda dá pra
+                  // reabrir manualmente pelo botão ao lado, se necessário.
+                  if (value !== "") setPending(false);
+                }}
                 className="w-20 h-8 font-mono text-right"
               />
               <button
@@ -688,9 +703,10 @@ function ParecerTab({
 }) {
   const { data: parecer, isLoading } = useLatestParecer(proponentId);
   const generateFicha = useGenerateFicha(proponentId);
+  const generateParecer = useGenerateParecer(proponentId);
 
-  const podeGerar = exportReady && !!tipoProponente && !!parecer;
-  const motivoBloqueio = !parecer
+  const podeGerarFicha = exportReady && !!tipoProponente && !!parecer;
+  const motivoBloqueioFicha = !parecer
     ? "gere a minuta primeiro"
     : !exportReady
       ? "aprove a avaliação sem pendências abertas"
@@ -702,18 +718,34 @@ function ParecerTab({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <CardTitle className="font-serif text-lg">Minuta de parecer</CardTitle>
-        {parecer && (
+        <div className="flex items-center gap-2">
           <Button
             size="sm"
-            variant="secondary"
-            disabled={!podeGerar || generateFicha.isPending}
-            onClick={() => generateFicha.mutate()}
-            title={motivoBloqueio ?? undefined}
+            variant="outline"
+            disabled={!exportReady || generateParecer.isPending}
+            onClick={() => generateParecer.mutate()}
+            title={!exportReady ? "aprove a avaliação sem pendências abertas" : undefined}
           >
-            <FileText className="w-4 h-4 mr-1.5" />
-            {generateFicha.isPending ? "Gerando ficha…" : "Gerar ficha preenchida"}
+            <Sparkles className="w-4 h-4 mr-1.5" />
+            {generateParecer.isPending
+              ? "Gerando minuta…"
+              : parecer
+                ? "Gerar nova minuta"
+                : "Gerar minuta"}
           </Button>
-        )}
+          {parecer && (
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!podeGerarFicha || generateFicha.isPending}
+              onClick={() => generateFicha.mutate()}
+              title={motivoBloqueioFicha ?? undefined}
+            >
+              <FileText className="w-4 h-4 mr-1.5" />
+              {generateFicha.isPending ? "Gerando ficha…" : "Gerar ficha preenchida"}
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -730,9 +762,9 @@ function ParecerTab({
               {hasPending &&
                 " · nota individual ainda é prévia provisória enquanto houver pendência humana"}
             </p>
-            {motivoBloqueio && (
+            {motivoBloqueioFicha && (
               <p className="text-[11px] text-warning-foreground mt-1">
-                Ficha ainda não disponível: {motivoBloqueio}.
+                Ficha ainda não disponível: {motivoBloqueioFicha}.
               </p>
             )}
             {generateFicha.isError && (
@@ -743,8 +775,16 @@ function ParecerTab({
           </>
         ) : (
           <div className="text-sm text-muted-foreground">
-            Nenhuma minuta ainda — clique em "Executar agentes" na aba Avaliação A–G.
+            {exportReady
+              ? 'Nenhuma minuta ainda — clique em "Gerar minuta" acima.'
+              : 'A minuta é gerada automaticamente ao clicar em "Aprovar avaliação" (aba Avaliação A–G), com as notas finais já definidas.'}
           </div>
+        )}
+        {generateParecer.isError && (
+          <p className="text-xs text-destructive mt-2">
+            {(generateParecer.error as Error | undefined)?.message ??
+              "Falha ao gerar a minuta de parecer."}
+          </p>
         )}
       </CardContent>
     </Card>

@@ -83,9 +83,6 @@ export const runAgentPipeline = createServerFn({ method: "POST" })
     const { runAgent7 } = await import("@/lib/agents/agent7-bonus.server");
     results.agente7 = await runAgent7(supabase, proponentId, context.userId);
 
-    const { runAgent8 } = await import("@/lib/agents/agent8-auditor.server");
-    results.agente8 = await runAgent8(supabase, proponentId, context.userId);
-
     const { data: currentProponent } = await supabase
       .from("proponents")
       .select("status")
@@ -102,4 +99,19 @@ export const runAgentPipeline = createServerFn({ method: "POST" })
     }
 
     return results;
+  });
+
+// Agente 8 (Auditor e Relator) roda sozinho, separado do restante do squad —
+// só depois que a avaliadora aprovou a avaliação (nota final definida por
+// critério, sem pendência aberta). Rodar antes disso produzia uma minuta
+// baseada na proposta dos agentes, que ficava desatualizada assim que a
+// avaliadora ajustava alguma nota. Chamado automaticamente por
+// useApproveEvaluation, e disponível também para regeneração manual.
+export const generateParecerFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { proponentId: string }) => data)
+  .handler(async ({ context, data }) => {
+    await requireAdministradora(context.supabase, context.userId);
+    const { runAgent8 } = await import("@/lib/agents/agent8-auditor.server");
+    return runAgent8(context.supabase, data.proponentId, context.userId);
   });
