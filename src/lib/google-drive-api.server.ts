@@ -30,6 +30,12 @@ async function driveFetch(accessToken: string, path: string): Promise<Response> 
   return res;
 }
 
+export async function getConnectedAccountEmail(accessToken: string): Promise<string | null> {
+  const res = await driveFetch(accessToken, `/about?fields=user(emailAddress,displayName)`);
+  const data = (await res.json()) as { user?: { emailAddress?: string } };
+  return data.user?.emailAddress ?? null;
+}
+
 export async function getFileMetadata(accessToken: string, fileId: string): Promise<DriveFile> {
   const fields =
     "id, name, mimeType, parents, size, modifiedTime, createdTime, md5Checksum, webViewLink, trashed";

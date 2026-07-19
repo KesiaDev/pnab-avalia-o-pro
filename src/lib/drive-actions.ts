@@ -133,11 +133,15 @@ export const handleGoogleOAuthCallback = createServerFn({ method: "GET" })
         return { ok: false as const, errorCode: "no_refresh_token" };
       }
 
+      const { getConnectedAccountEmail } = await import("@/lib/google-drive-api.server");
+      const email = await getConnectedAccountEmail(tokens.access_token).catch(() => null);
+
       const encrypted = bufferToPgBytea(encryptRefreshToken(tokens.refresh_token));
       const { error: insertError } = await supabaseAdmin.from("drive_connections").insert({
         connected_by: data.state,
         refresh_token_encrypted: encrypted as unknown as never,
         scope: tokens.scope,
+        google_email: email,
       });
       if (insertError) {
         return { ok: false as const, errorCode: "save_failed", detail: insertError.message };

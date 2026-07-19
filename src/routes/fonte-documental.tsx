@@ -114,7 +114,9 @@ function FonteDocumental() {
                 <div className="flex items-center gap-3 rounded-md border border-success/30 bg-success/5 px-4 py-3 text-sm">
                   <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
                   <div className="flex-1">
-                    <div className="font-medium text-foreground">Conta conectada</div>
+                    <div className="font-medium text-foreground">
+                      {connection.google_email ?? "Conta conectada"}
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       escopo <span className="font-mono">drive.readonly</span> · desde{" "}
                       {new Date(connection.connected_at).toLocaleDateString("pt-BR")}
