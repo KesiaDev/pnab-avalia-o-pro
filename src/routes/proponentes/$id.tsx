@@ -31,10 +31,18 @@ import {
   useUploadFile,
   type CriterionScoreRow,
 } from "@/lib/queries/proponents";
+import {
+  useEvidence,
+  useFlags,
+  useLatestParecer,
+  useRunAgentPipeline,
+  type EvidenceRow,
+} from "@/lib/queries/agents";
 import { useMemo, useState, useEffect, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  Bot,
   ChevronLeft,
   FileText,
   ShieldAlert,
@@ -64,6 +72,7 @@ function ProponentDetail() {
   const { data: scores } = useCriterionScores(id);
   const updateScore = useUpdateCriterionScore(id);
   const approveEvaluation = useApproveEvaluation(id);
+  const runAgents = useRunAgentPipeline(id);
   const queryClient = useQueryClient();
 
   const rows = useMemo(() => scores ?? [], [scores]);
@@ -158,6 +167,15 @@ function ProponentDetail() {
                 <div className="flex flex-col gap-2 mt-3">
                   <Button
                     size="sm"
+                    variant="secondary"
+                    disabled={runAgents.isPending}
+                    onClick={() => runAgents.mutate()}
+                  >
+                    <Bot className="w-4 h-4 mr-1.5" />
+                    {runAgents.isPending ? "Executando agentes…" : "Executar agentes"}
+                  </Button>
+                  <Button
+                    size="sm"
                     disabled={hasPending}
                     onClick={() => approveEvaluation.mutate()}
                   >
@@ -170,6 +188,12 @@ function ProponentDetail() {
               </CardContent>
             </Card>
           </div>
+
+          {runAgents.isError && (
+            <p className="text-xs text-destructive">
+              {(runAgents.error as Error | undefined)?.message ?? "Falha ao executar os agentes."}
+            </p>
+          )}
 
           <div className="space-y-3">
             {rows.map((c) => (
@@ -207,8 +231,7 @@ function ProponentDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <DemoDataNotice />
-              <EvidenceTable />
+              <EvidenceTable proponentId={id} />
               <p className="text-xs text-muted-foreground mt-4">
                 Toda nota deve ser sustentada por evidência com arquivo, versão, página e trecho.
                 Ausência de comprovação é registrada sem ser transformada em afirmação de
@@ -219,47 +242,21 @@ function ProponentDetail() {
         </TabsContent>
 
         <TabsContent value="parecer">
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-serif text-lg">Minuta de parecer</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DemoDataNotice />
-              <Textarea
-                className="min-h-[420px] font-serif text-base leading-relaxed bg-card"
-                defaultValue={`Parecer individual — Edital 119/2026 (PNAB Ciclo 2)
-Proponente: ${p.nome_canonico}
-Categoria: ${p.categoria ?? "—"}
-
-Observações e pendências: ${hasPending ? "há pendência humana aberta — nota individual permanece como prévia provisória." : "nenhuma pendência humana em aberto."}
-`}
-              />
-              <div className="flex gap-2 mt-4">
-                <Button disabled>Salvar minuta</Button>
-                <Button variant="outline" disabled>
-                  Exportar PDF
-                </Button>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-2">
-                Geração assistida por agentes chega na Fase 3/4 do prompt-mestre.
-              </p>
-            </CardContent>
-          </Card>
+          <ParecerTab proponentId={id} hasPending={hasPending} />
         </TabsContent>
 
         <TabsContent value="auditoria">
           <Card>
             <CardHeader>
               <CardTitle className="font-serif text-lg flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-primary" /> Trilha de auditoria
+                <ShieldCheck className="w-5 h-5 text-primary" /> Alertas e trilha de auditoria
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <DemoDataNotice />
-              <p className="text-xs text-muted-foreground">
-                As mutações reais deste proponente já estão sendo gravadas em{" "}
-                <code>audit_logs</code>. A visualização cronológica desta aba chega junto do Auditor
-                (Agente 8), na Fase 3.
+              <FlagsList proponentId={id} />
+              <p className="text-xs text-muted-foreground mt-4">
+                Toda mutação real deste proponente é gravada em <code>audit_logs</code>, com
+                usuário/ agente, valor anterior e posterior.
               </p>
             </CardContent>
           </Card>
@@ -274,15 +271,6 @@ Observações e pendências: ${hasPending ? "há pendência humana aberta — no
         </span>
       </div>
     </AppShell>
-  );
-}
-
-function DemoDataNotice() {
-  return (
-    <div className="mb-4 rounded-md border border-info/30 bg-info/5 px-3 py-2 text-[11px] text-muted-foreground">
-      Dados de demonstração — esta aba passa a usar dados reais na Fase 3/4 (matriz de evidências e
-      agentes).
-    </div>
   );
 }
 
@@ -527,80 +515,121 @@ function DossieTab({ proponentId }: { proponentId: string }) {
   );
 }
 
-function EvidenceTable() {
-  const rows = [
-    {
-      crit: "A",
-      arq: "3 PORTFOLIO.pdf",
-      pag: "p. 4",
-      desc: "Matéria do Pioneiro cita atuação em 2010.",
-      robustez: "alta",
-    },
-    {
-      crit: "B",
-      arq: "4 COMPROVANTES.pdf",
-      pag: "p. 12–14",
-      desc: "Programa oficial da 33ª Festa da Uva.",
-      robustez: "alta",
-    },
-    {
-      crit: "B",
-      arq: "3 PORTFOLIO.pdf",
-      pag: "p. 22",
-      desc: "Cartaz de oficina 2019.",
-      robustez: "media",
-    },
-    {
-      crit: "C",
-      arq: "4 COMPROVANTES.pdf",
-      pag: "p. 41",
-      desc: "Contrato com Secretaria Municipal de Educação.",
-      robustez: "alta",
-    },
-    {
-      crit: "D",
-      arq: "3 PORTFOLIO.pdf",
-      pag: "p. 30",
-      desc: "Relato de projeto com mulheres em vulnerabilidade — sem comprovação externa.",
-      robustez: "declaratoria",
-    },
-    {
-      crit: "F",
-      arq: "4 COMPROVANTES.pdf",
-      pag: "p. 55",
-      desc: "Cartaz de apresentação em Forqueta (bairro rural).",
-      robustez: "media",
-    },
-  ];
-  const toneOf: Record<string, "success" | "info" | "neutral"> = {
-    alta: "success",
-    media: "info",
-    declaratoria: "neutral",
-  };
+const ROBUSTEZ_TONE: Record<string, "success" | "info" | "neutral"> = {
+  alta: "success",
+  media: "info",
+  declaratoria: "neutral",
+};
+
+function EvidenceTable({ proponentId }: { proponentId: string }) {
+  const { data: evidence, isLoading } = useEvidence(proponentId);
+  const rows = evidence ?? [];
+
+  if (isLoading) {
+    return <div className="text-sm text-muted-foreground">Carregando…</div>;
+  }
+  if (rows.length === 0) {
+    return (
+      <div className="text-sm text-muted-foreground">
+        Nenhuma evidência ainda — clique em "Executar agentes" na aba Avaliação A–G.
+      </div>
+    );
+  }
+
   return (
     <table className="w-full text-sm">
       <thead>
         <tr className="border-b border-border text-[11px] uppercase tracking-wider text-muted-foreground">
           <th className="text-left px-2 py-2 font-medium w-16">Crit.</th>
-          <th className="text-left px-2 py-2 font-medium">Arquivo</th>
-          <th className="text-left px-2 py-2 font-medium w-24">Página</th>
+          <th className="text-left px-2 py-2 font-medium">Página</th>
           <th className="text-left px-2 py-2 font-medium">Descrição factual</th>
           <th className="text-left px-2 py-2 font-medium w-32">Robustez</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-border">
-        {rows.map((r, i) => (
-          <tr key={i} className="hover:bg-secondary/20">
-            <td className="px-2 py-2.5 font-serif text-primary">{r.crit}</td>
-            <td className="px-2 py-2.5 font-mono text-xs">{r.arq}</td>
-            <td className="px-2 py-2.5 text-muted-foreground">{r.pag}</td>
-            <td className="px-2 py-2.5">{r.desc}</td>
+        {rows.map((r: EvidenceRow) => (
+          <tr key={r.id} className="hover:bg-secondary/20">
+            <td className="px-2 py-2.5 font-serif text-primary">{r.criterion}</td>
+            <td className="px-2 py-2.5 text-muted-foreground">
+              {r.pagina_inicial
+                ? `p. ${r.pagina_inicial}${r.pagina_final && r.pagina_final !== r.pagina_inicial ? `–${r.pagina_final}` : ""}`
+                : "—"}
+            </td>
             <td className="px-2 py-2.5">
-              <StatusBadge tone={toneOf[r.robustez]}>{r.robustez}</StatusBadge>
+              {r.descricao_factual}
+              {r.trecho_relevante && (
+                <div className="text-xs text-muted-foreground italic mt-0.5">
+                  "{r.trecho_relevante}"
+                </div>
+              )}
+            </td>
+            <td className="px-2 py-2.5">
+              <StatusBadge tone={ROBUSTEZ_TONE[r.robustez]}>{r.robustez}</StatusBadge>
             </td>
           </tr>
         ))}
       </tbody>
     </table>
+  );
+}
+
+function ParecerTab({ proponentId, hasPending }: { proponentId: string; hasPending: boolean }) {
+  const { data: parecer, isLoading } = useLatestParecer(proponentId);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="font-serif text-lg">Minuta de parecer</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground">Carregando…</div>
+        ) : parecer ? (
+          <>
+            <Textarea
+              key={parecer.id}
+              className="min-h-[420px] font-serif text-base leading-relaxed bg-card"
+              defaultValue={parecer.texto}
+            />
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Versão {parecer.versao} · gerada por {parecer.gerado_por_agente}
+              {hasPending &&
+                " · nota individual ainda é prévia provisória enquanto houver pendência humana"}
+            </p>
+          </>
+        ) : (
+          <div className="text-sm text-muted-foreground">
+            Nenhuma minuta ainda — clique em "Executar agentes" na aba Avaliação A–G.
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function FlagsList({ proponentId }: { proponentId: string }) {
+  const { data: flags, isLoading } = useFlags(proponentId);
+  const rows = flags ?? [];
+
+  if (isLoading) return <div className="text-sm text-muted-foreground">Carregando…</div>;
+  if (rows.length === 0) {
+    return <div className="text-sm text-muted-foreground mb-2">Nenhum alerta registrado.</div>;
+  }
+
+  return (
+    <ul className="space-y-3 text-sm mb-4">
+      {rows.map((f) => (
+        <li key={f.id} className="flex gap-4">
+          <div className="text-xs text-muted-foreground font-mono w-32 shrink-0">
+            {new Date(f.created_at).toLocaleString("pt-BR")}
+          </div>
+          <StatusBadge tone={f.status === "aberto" ? "warning" : "success"}>{f.status}</StatusBadge>
+          <div className="flex-1">
+            <div className="font-medium text-xs">{f.tipo}</div>
+            <div className="text-xs text-muted-foreground">{f.descricao}</div>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }

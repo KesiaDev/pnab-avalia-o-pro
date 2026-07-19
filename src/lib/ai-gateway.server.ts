@@ -1,0 +1,133 @@
+// Server-only (sufixo .server.ts) — ver aviso em google-oauth.server.ts.
+// Cliente do Lovable AI Gateway, formato compatível com /v1/chat/completions
+// da OpenAI. Usado por todos os módulos em src/lib/agents/*.server.ts.
+import type { z } from "zod";
+
+const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const DEFAULT_MODEL = "openai/gpt-5.5";
+const MAX_FILE_BYTES = 15 * 1024 * 1024; // Seção 8: "arquivo ilegível deve ser marcado, não interpretado"
+
+const JSON_ONLY_SUFFIX =
+  "\n\nResponda estritamente em JSON válido, sem texto antes ou depois, sem bloco de código markdown. " +
+  "Nunca invente, presuma ou complete informação que não esteja explicitamente nos documentos fornecidos. " +
+  "Quando não houver comprovação suficiente, use a redação padronizada de insuficiência do prompt-mestre.";
+
+export interface AgentFile {
+  name: string;
+  mimeType: string;
+  data: Buffer;
+}
+
+interface ChatContentBlock {
+  type: "text" | "file";
+  text?: string;
+  file?: { filename: string; file_data: string };
+}
+
+interface ChatMessage {
+  role: "system" | "user" | "assistant";
+  content: string | ChatContentBlock[];
+}
+
+export interface CallAgentParams<T> {
+  systemPrompt: string;
+  userPrompt: string;
+  files?: AgentFile[];
+  responseSchema: z.ZodType<T>;
+  model?: string;
+}
+
+export interface CallAgentResult<T> {
+  data: T;
+  raw: string;
+  skippedFiles: string[];
+}
+
+function requireApiKey(): string {
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) throw new Error("Missing LOVABLE_API_KEY env var");
+  return key;
+}
+
+function extractJson(text: string): string {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  return (fenced ? fenced[1] : text).trim();
+}
+
+function safeJsonParse(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+async function requestCompletion(
+  model: string,
+  apiKey: string,
+  messages: ChatMessage[],
+): Promise<string> {
+  const res = await fetch(GATEWAY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
+    body: JSON.stringify({ model, messages }),
+  });
+  if (!res.ok) {
+    throw new Error(`AI Gateway falhou: ${res.status} ${await res.text()}`);
+  }
+  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  return json.choices?.[0]?.message?.content ?? "";
+}
+
+export async function callAgent<T>(params: CallAgentParams<T>): Promise<CallAgentResult<T>> {
+  const apiKey = requireApiKey();
+  const model = params.model ?? DEFAULT_MODEL;
+
+  const skippedFiles: string[] = [];
+  const fileBlocks: ChatContentBlock[] = [];
+  for (const file of params.files ?? []) {
+    if (file.data.length > MAX_FILE_BYTES) {
+      skippedFiles.push(file.name);
+      continue;
+    }
+    fileBlocks.push({
+      type: "file",
+      file: {
+        filename: file.name,
+        file_data: `data:${file.mimeType};base64,${file.data.toString("base64")}`,
+      },
+    });
+  }
+
+  const userText =
+    skippedFiles.length > 0
+      ? `${params.userPrompt}\n\nAviso: os seguintes arquivos foram ignorados por excederem o tamanho processável e não devem ser interpretados como ausentes de conteúdo: ${skippedFiles.join(", ")}.`
+      : params.userPrompt;
+
+  const messages: ChatMessage[] = [
+    { role: "system", content: params.systemPrompt + JSON_ONLY_SUFFIX },
+    { role: "user", content: [{ type: "text", text: userText }, ...fileBlocks] },
+  ];
+
+  let raw = await requestCompletion(model, apiKey, messages);
+  let parsed = params.responseSchema.safeParse(safeJsonParse(extractJson(raw)));
+
+  if (!parsed.success) {
+    const retryMessages: ChatMessage[] = [
+      ...messages,
+      { role: "assistant", content: raw },
+      {
+        role: "user",
+        content: `A resposta anterior não é um JSON válido no formato esperado (${parsed.error.message}). Responda de novo, só com o JSON puro, sem texto ao redor e sem bloco de código.`,
+      },
+    ];
+    raw = await requestCompletion(model, apiKey, retryMessages);
+    parsed = params.responseSchema.safeParse(safeJsonParse(extractJson(raw)));
+  }
+
+  if (!parsed.success) {
+    throw new Error(`Resposta do agente fora do formato esperado: ${parsed.error.message}`);
+  }
+
+  return { data: parsed.data, raw, skippedFiles };
+}

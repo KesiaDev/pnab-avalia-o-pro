@@ -1,0 +1,162 @@
+// Server-only (sufixo .server.ts) — ver aviso em google-oauth.server.ts.
+// Agente 3 — Identidade, Minimização e Conformidade (Seção 17, Seção 7).
+// Classifica cada documento do proponente pelo CONTEÚDO real (não pelo
+// nome do arquivo), e coteja o nome encontrado em identidade/GRP/Zimbra
+// contra o nome canônico, registrando alias e divergência sem decidir
+// sozinho qual nome está certo.
+import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+import { callAgent } from "@/lib/ai-gateway.server";
+import {
+  fetchProponentFiles,
+  finishAgentRun,
+  recordAgentOutput,
+  startAgentRun,
+  toAgentFiles,
+} from "./shared.server";
+
+const SYSTEM_PROMPT = `Você é o Agente de Identidade e Conformidade da plataforma PNAB Caxias — Avaliação Assistida.
+
+Use RG/CNH, GRP, Zimbra e formulário de inscrição apenas para conferir identidade, protocolo e processo
+administrativo, e para classificar cada documento pelo seu tipo real (pelo CONTEÚDO, nunca apenas pelo
+nome do arquivo). Não use dados pessoais para mérito. Não infira gênero, raça, orientação sexual,
+deficiência ou vulnerabilidade a partir de nome, foto ou aparência. Classifique GRP e Protocolo Zimbra
+como documentos administrativos não pontuáveis.
+
+Tipos de documento possíveis (Seção 7 do prompt-mestre):
+- formulario: formulário de inscrição (dados estruturantes, autodeclarações).
+- identidade: RG, CNH ou equivalente.
+- portfolio: portfólio ou currículo (trajetória, projetos).
+- comprobatorio: cartazes, certificados, matérias, programas, contratos, publicações, fotos contextualizadas.
+- grp: registro administrativo municipal da inscrição (processo, CPF/CNPJ, síntese).
+- zimbra: confirmação institucional de protocolo por e-mail.
+- outro: qualquer coisa que não se encaixe nos anteriores.
+
+Para cada arquivo anexado, identifique o tipo e uma justificativa curta baseada no conteúdo real.
+Se encontrar o nome completo do proponente em algum documento de identidade, GRP ou Zimbra, registre
+esse nome e de onde veio — não decida qual nome é o correto, apenas relate o que encontrou em cada fonte.`;
+
+const classificationItemSchema = z.object({
+  arquivo: z.string(),
+  tipo_documental: z.enum([
+    "formulario",
+    "identidade",
+    "portfolio",
+    "comprobatorio",
+    "grp",
+    "zimbra",
+    "outro",
+  ]),
+  confianca: z.number().min(0).max(1).optional(),
+  justificativa: z.string(),
+});
+
+const nomeEncontradoSchema = z.object({
+  nome: z.string(),
+  fonte: z.string(),
+});
+
+const responseSchema = z.object({
+  classificacoes: z.array(classificationItemSchema),
+  nomes_encontrados: z.array(nomeEncontradoSchema).default([]),
+});
+
+export async function runAgent3(
+  supabase: SupabaseClient<Database>,
+  proponentId: string,
+  userId: string,
+): Promise<{ classificados: number; aliasesNovos: number }> {
+  const run = await startAgentRun(supabase, {
+    proponentId,
+    agentName: "agente_3_identidade",
+    model: "openai/gpt-5.5",
+    triggeredBy: userId,
+  });
+
+  try {
+    const files = await fetchProponentFiles(supabase, proponentId);
+    if (files.length === 0) {
+      await finishAgentRun(supabase, run.id, "concluido");
+      return { classificados: 0, aliasesNovos: 0 };
+    }
+
+    const { data } = await callAgent({
+      systemPrompt: SYSTEM_PROMPT,
+      userPrompt: `Classifique cada um dos ${files.length} arquivos anexados. Responda em JSON:
+{"classificacoes": [{"arquivo": "nome exato do arquivo", "tipo_documental": "...", "confianca": 0.0, "justificativa": "..."}],
+ "nomes_encontrados": [{"nome": "nome completo encontrado", "fonte": "ex: RG, GRP, Zimbra"}]}`,
+      files: toAgentFiles(files),
+      responseSchema,
+    });
+
+    let classificados = 0;
+    for (const item of data.classificacoes) {
+      const file = files.find(
+        (f) => f.nome.trim().toLowerCase() === item.arquivo.trim().toLowerCase(),
+      );
+      if (!file) continue;
+      await supabase.from("document_classifications").insert({
+        file_id: file.id,
+        file_version_id: file.versionId,
+        tipo_documental: item.tipo_documental,
+        confianca: item.confianca ?? null,
+        justificativa: item.justificativa,
+        criado_por_agente: "agente_3",
+      });
+      await supabase
+        .from("files")
+        .update({ tipo_documental: item.tipo_documental })
+        .eq("id", file.id);
+      classificados += 1;
+    }
+
+    const { data: proponent } = await supabase
+      .from("proponents")
+      .select("nome_canonico")
+      .eq("id", proponentId)
+      .single();
+    const { data: existingAliases } = await supabase
+      .from("proponent_aliases")
+      .select("alias")
+      .eq("proponent_id", proponentId);
+    const knownNames = new Set(
+      [proponent?.nome_canonico, ...(existingAliases ?? []).map((a) => a.alias)]
+        .filter((n): n is string => !!n)
+        .map((n) => n.trim().toLowerCase()),
+    );
+
+    let aliasesNovos = 0;
+    for (const encontrado of data.nomes_encontrados) {
+      const normalized = encontrado.nome.trim().toLowerCase();
+      if (!normalized || knownNames.has(normalized)) continue;
+      knownNames.add(normalized);
+      await supabase.from("proponent_aliases").insert({
+        proponent_id: proponentId,
+        alias: encontrado.nome,
+        origem: encontrado.fonte,
+      });
+      aliasesNovos += 1;
+      if (proponent?.nome_canonico && normalized !== proponent.nome_canonico.trim().toLowerCase()) {
+        await supabase.from("flags").insert({
+          proponent_id: proponentId,
+          tipo: "divergencia_documental",
+          descricao: `Nome "${encontrado.nome}" encontrado em ${encontrado.fonte} diverge do nome canônico "${proponent.nome_canonico}". Requer verificação pela Secretaria Municipal da Cultura.`,
+          criado_por_agente: "agente_3",
+        });
+      }
+    }
+
+    await recordAgentOutput(supabase, run.id, "classificacao", data);
+    await finishAgentRun(supabase, run.id, "concluido");
+    return { classificados, aliasesNovos };
+  } catch (err) {
+    await finishAgentRun(
+      supabase,
+      run.id,
+      "erro",
+      err instanceof Error ? err.message : String(err),
+    );
+    throw err;
+  }
+}
