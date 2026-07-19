@@ -62,33 +62,6 @@ export const saveDriveSource = createServerFn({ method: "POST" })
     return { source };
   });
 
-// Diagnóstico temporário — remover depois de descobrir a causa do
-// files.list vazio numa pasta com conteúdo real. Não escreve no banco.
-export const diagnoseDriveFn = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .validator((data: { driveSourceId: string }) => data)
-  .handler(async ({ context, data }) => {
-    await requireAdministradora(context.supabase, context.userId);
-    const { decryptRefreshToken, pgByteaToBuffer, refreshAccessToken } =
-      await import("@/lib/google-oauth.server");
-    const { diagnoseDriveAccess } = await import("@/lib/google-drive-api.server");
-
-    const { data: source, error: sourceError } = await context.supabase
-      .from("drive_sources")
-      .select("*, drive_connections(*)")
-      .eq("id", data.driveSourceId)
-      .single();
-    if (sourceError || !source) throw new Error("Pasta-fonte não encontrada.");
-    const connection = source.drive_connections as unknown as {
-      refresh_token_encrypted: string;
-    } | null;
-    if (!connection) throw new Error("Conexão não encontrada.");
-
-    const refreshToken = decryptRefreshToken(pgByteaToBuffer(connection.refresh_token_encrypted));
-    const { access_token: accessToken } = await refreshAccessToken(refreshToken);
-    return diagnoseDriveAccess(accessToken, source.drive_folder_id);
-  });
-
 export const runBaselineFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: { driveSourceId: string }) => data)
