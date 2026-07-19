@@ -66,7 +66,7 @@ export const runAgentPipeline = createServerFn({ method: "POST" })
         .eq("id", orchestratorRun.id);
     }
 
-    const results: Record<string, unknown> = {};
+    const results: Record<string, Json> = {};
 
     const { runAgent3 } = await import("@/lib/agents/agent3-classification.server");
     results.agente3 = await runAgent3(supabase, proponentId, context.userId);

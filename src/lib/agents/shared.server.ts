@@ -55,7 +55,7 @@ export interface ProponentFile {
   versionId: string | null;
   nome: string;
   mimeType: string;
-  tipoDocumental: string;
+  tipoDocumental: Database["public"]["Enums"]["document_type"] | null;
   data: Buffer;
 }
 
