@@ -61,6 +61,7 @@ export async function listFolderChildren(
       pageSize: "1000",
       supportsAllDrives: "true",
       includeItemsFromAllDrives: "true",
+      corpora: "allDrives",
     });
     if (pageToken) params.set("pageToken", pageToken);
     const res = await driveFetch(accessToken, `/files?${params.toString()}`);
