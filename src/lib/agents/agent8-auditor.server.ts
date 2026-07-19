@@ -23,7 +23,11 @@ informações e nos documentos apresentados pelo agente cultural no ato da inscr
 
 Nunca mencione comparação nominal com outros candidatos. Nunca exponha CPF, RG, endereço, telefone, e-mail
 ou dados bancários — o resumo fornecido já não contém esses dados. Não chame a nota individual de "média
-final".
+final". O campo "nota" de cada critério é a nota final, já definida pela avaliadora — é sempre esse número,
+e não nenhum outro, que deve aparecer no texto. Quando a nota final divergir do que a descrição do critério
+sugeriria isoladamente, escreva a fundamentação como a conclusão da própria avaliadora sobre aquele
+critério — nunca como a proposta original recalculada. Na seção (7), use exatamente o valor de
+"nota_individual_total" fornecido no resumo — nunca some as notas dos critérios você mesmo.
 
 Este parecer é um documento técnico definitivo, redigido para envio ao contratante. Nunca mencione, em
 nenhuma seção, processos internos de elaboração: não escreva sobre inteligência artificial, automação,
@@ -69,6 +73,11 @@ export async function runAgent8(
       .from("evidence")
       .select("criterion, descricao_factual, robustez")
       .eq("proponent_id", proponentId);
+    const { data: evaluation } = await supabase
+      .from("evaluations")
+      .select("individual_total")
+      .eq("proponent_id", proponentId)
+      .single();
 
     const evidenceByCriterion = new Map<string, number>();
     for (const ev of evidenceRows ?? []) {
@@ -87,15 +96,21 @@ export async function runAgent8(
       proponente: proponent?.nome_canonico,
       categoria: proponent?.categoria,
       ciclo1_alerta: proponent?.ciclo1_alerta,
+      // "nota" é sempre a nota final da avaliadora (approved_score) — nunca a
+      // proposta original dos agentes. Esta função só roda depois da
+      // aprovação, então approved_score já deveria estar definido para todo
+      // critério; o fallback existe só por segurança.
       criterios: (scores ?? []).map((s) => ({
         criterio: s.criterion,
         max: s.max_score,
-        proposto: s.proposed_score,
+        nota: s.approved_score ?? s.proposed_score,
         faixa: s.applied_band,
         justificativa: s.justification,
-        pendencia_humana: s.human_review_required,
         evidencias_vinculadas: evidenceByCriterion.get(s.criterion) ?? 0,
       })),
+      // Soma oficial já calculada pelo banco (trigger) — usar exatamente este
+      // número na seção (7), nunca somar as notas dos critérios de novo.
+      nota_individual_total: evaluation?.individual_total ?? null,
     };
 
     const { data } = await callAgent({
