@@ -127,7 +127,7 @@ export async function runAgent3(
     );
 
     let aliasesNovos = 0;
-    for (const encontrado of data.nomes_encontrados) {
+    for (const encontrado of data.nomes_encontrados ?? []) {
       const normalized = encontrado.nome.trim().toLowerCase();
       if (!normalized || knownNames.has(normalized)) continue;
       knownNames.add(normalized);

@@ -3,6 +3,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Json } from "@/integrations/supabase/types";
 
 async function requireAdministradora(supabase: SupabaseClient, userId: string) {
   const { data, error } = await supabase.rpc("has_role", {
@@ -65,7 +66,7 @@ export const runAgentPipeline = createServerFn({ method: "POST" })
         .eq("id", orchestratorRun.id);
     }
 
-    const results: Record<string, unknown> = {};
+    const results: Record<string, Json> = {};
 
     const { runAgent3 } = await import("@/lib/agents/agent3-classification.server");
     results.agente3 = await runAgent3(supabase, proponentId, context.userId);

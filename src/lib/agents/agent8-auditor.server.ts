@@ -121,7 +121,7 @@ export async function runAgent8(
       .single();
     if (parecerError || !parecer) throw new Error("Não foi possível salvar a minuta de parecer.");
 
-    for (const divergencia of data.divergencias) {
+    for (const divergencia of data.divergencias ?? []) {
       await supabase.from("flags").insert({
         proponent_id: proponentId,
         tipo: "divergencia_documental",
