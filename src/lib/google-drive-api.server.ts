@@ -7,6 +7,8 @@ const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
 const GOOGLE_WORKSPACE_MIME_PREFIX = "application/vnd.google-apps.";
 
+const SHORTCUT_MIME = "application/vnd.google-apps.shortcut";
+
 export interface DriveFile {
   id: string;
   name: string;
@@ -18,7 +20,11 @@ export interface DriveFile {
   md5Checksum?: string;
   webViewLink?: string;
   trashed?: boolean;
+  shortcutDetails?: { targetId: string; targetMimeType: string };
 }
+
+const LIST_FIELDS =
+  "id, name, mimeType, parents, size, modifiedTime, createdTime, md5Checksum, webViewLink, trashed, shortcutDetails(targetId,targetMimeType)";
 
 async function driveFetch(accessToken: string, path: string): Promise<Response> {
   const res = await fetch(`${DRIVE_API}${path}`, {
@@ -111,13 +117,28 @@ export async function diagnoseDriveAccess(accessToken: string, folderId: string)
 }
 
 export async function getFileMetadata(accessToken: string, fileId: string): Promise<DriveFile> {
-  const fields =
-    "id, name, mimeType, parents, size, modifiedTime, createdTime, md5Checksum, webViewLink, trashed";
   const res = await driveFetch(
     accessToken,
-    `/files/${fileId}?fields=${fields}&supportsAllDrives=true`,
+    `/files/${fileId}?fields=${LIST_FIELDS}&supportsAllDrives=true`,
   );
   return res.json();
+}
+
+// Atalhos (application/vnd.google-apps.shortcut) apontam para o item real em
+// outro lugar do Drive — sem resolver, um atalho para pasta nunca é
+// reconhecido como pasta (mimeType do atalho é sempre "shortcut", nunca
+// "folder"), e um atalho para arquivo não tem conteúdo próprio para baixar.
+// Mantém o nome do atalho (é o que aparece na pasta-fonte), troca id/mimeType
+// pelo alvo real; para atalho de arquivo, busca metadados reais do alvo
+// (modifiedTime/checksum do atalho não refletem o conteúdo real).
+async function resolveShortcut(accessToken: string, file: DriveFile): Promise<DriveFile> {
+  if (file.mimeType !== SHORTCUT_MIME || !file.shortcutDetails?.targetId) return file;
+  const { targetId, targetMimeType } = file.shortcutDetails;
+  if (targetMimeType === FOLDER_MIME) {
+    return { ...file, id: targetId, mimeType: targetMimeType };
+  }
+  const target = await getFileMetadata(accessToken, targetId);
+  return { ...target, name: file.name };
 }
 
 export async function listFolderChildren(
@@ -126,8 +147,7 @@ export async function listFolderChildren(
 ): Promise<DriveFile[]> {
   const files: DriveFile[] = [];
   let pageToken: string | undefined;
-  const fields =
-    "nextPageToken, files(id, name, mimeType, parents, size, modifiedTime, createdTime, md5Checksum, webViewLink, trashed)";
+  const fields = `nextPageToken, files(${LIST_FIELDS})`;
   do {
     const params = new URLSearchParams({
       q: `'${folderId}' in parents and trashed = false`,
@@ -143,7 +163,7 @@ export async function listFolderChildren(
     files.push(...data.files);
     pageToken = data.nextPageToken;
   } while (pageToken);
-  return files;
+  return Promise.all(files.map((f) => resolveShortcut(accessToken, f)));
 }
 
 export function isFolder(file: DriveFile): boolean {
