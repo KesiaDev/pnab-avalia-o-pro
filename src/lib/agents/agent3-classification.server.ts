@@ -33,7 +33,12 @@ Tipos de documento possíveis (Seção 7 do prompt-mestre):
 - zimbra: confirmação institucional de protocolo por e-mail.
 - outro: qualquer coisa que não se encaixe nos anteriores.
 
-Para cada arquivo anexado, identifique o tipo e uma justificativa curta baseada no conteúdo real.
+Os arquivos são anexados numerados, na ordem "Arquivo 1", "Arquivo 2" etc. — use esse número (campo
+"indice") pra identificar cada um na resposta, nunca reescreva o nome do arquivo por conta própria. Sua
+resposta em "classificacoes" precisa ter EXATAMENTE um item por número de arquivo recebido, sem pular
+nenhum — se não tiver certeza do tipo de algum, classifique como "outro" com confiança baixa, mas sempre
+inclua o item.
+
 Se encontrar o nome completo do proponente em algum documento de identidade, GRP ou Zimbra, registre
 esse nome e de onde veio — não decida qual nome é o correto, apenas relate o que encontrou em cada fonte.
 
@@ -46,7 +51,8 @@ claro, ou houver indício conflitante entre eles, marque "tipo_proponente_ambigu
 palpite — isso vai para revisão humana.`;
 
 const classificationItemSchema = z.object({
-  arquivo: z.string(),
+  indice: z.number().int(),
+  arquivo: z.string().optional(),
   tipo_documental: z.enum([
     "formulario",
     "identidade",
@@ -92,10 +98,12 @@ export async function runAgent3(
       return { classificados: 0, aliasesNovos: 0 };
     }
 
+    const fileList = files.map((f, i) => `Arquivo ${i + 1}: ${f.nome}`).join("\n");
+
     const { data } = await callAgent({
       systemPrompt: SYSTEM_PROMPT,
-      userPrompt: `Classifique cada um dos ${files.length} arquivos anexados. Responda em JSON:
-{"classificacoes": [{"arquivo": "nome exato do arquivo", "tipo_documental": "...", "confianca": 0.0, "justificativa": "..."}],
+      userPrompt: `Classifique cada um dos ${files.length} arquivos anexados, nesta ordem:\n${fileList}\n\nResponda em JSON:
+{"classificacoes": [{"indice": 1, "tipo_documental": "...", "confianca": 0.0, "justificativa": "..."}],
  "nomes_encontrados": [{"nome": "nome completo encontrado", "fonte": "ex: RG, GRP, Zimbra"}],
  "tipo_proponente": "pessoa_fisica" ou "pessoa_juridica_ou_coletivo" ou null,
  "tipo_proponente_ambiguo": true/false,
@@ -105,11 +113,11 @@ export async function runAgent3(
     });
 
     let classificados = 0;
+    const indicesClassificados = new Set<number>();
     for (const item of data.classificacoes) {
-      const file = files.find(
-        (f) => f.nome.trim().toLowerCase() === item.arquivo.trim().toLowerCase(),
-      );
+      const file = files[item.indice - 1];
       if (!file) continue;
+      indicesClassificados.add(item.indice);
       await supabase.from("document_classifications").insert({
         file_id: file.id,
         file_version_id: file.versionId,
@@ -123,6 +131,20 @@ export async function runAgent3(
         .update({ tipo_documental: item.tipo_documental })
         .eq("id", file.id);
       classificados += 1;
+    }
+
+    // Arquivos que o modelo deixou de fora da resposta ficam com a
+    // classificação anterior (geralmente "outro", o default da importação) —
+    // sinaliza em vez de deixar isso passar em silêncio, já que "outro" some
+    // é um valor plausível por si só e mascararia a falha de enumeração.
+    const naoClassificados = files.filter((_, i) => !indicesClassificados.has(i + 1));
+    if (naoClassificados.length > 0) {
+      await supabase.from("flags").insert({
+        proponent_id: proponentId,
+        tipo: "outro",
+        descricao: `Agente 3 não retornou classificação para ${naoClassificados.length} arquivo(s): ${naoClassificados.map((f) => f.nome).join(", ")}. Classificação atual pode estar desatualizada — considerar reexecutar os agentes ou classificar manualmente.`,
+        criado_por_agente: "agente_3",
+      });
     }
 
     const { data: proponent } = await supabase
