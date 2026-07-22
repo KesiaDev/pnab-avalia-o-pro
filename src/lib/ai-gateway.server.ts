@@ -82,14 +82,24 @@ async function requestCompletion(
 ): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  let res: Response;
+  // O timeout precisa cobrir a leitura do corpo da resposta (res.json()), não
+  // só o fetch() inicial — um `finally` logo após o fetch resolver limparia o
+  // timer assim que os cabeçalhos chegassem, deixando a leitura do corpo (onde
+  // o JSON grande é de fato transmitido) sem nenhuma proteção. Foi exatamente
+  // essa lacuna que deixou uma trava silenciosa acontecer mesmo com o timeout
+  // já em produção.
   try {
-    res = await fetch(GATEWAY_URL, {
+    const res = await fetch(GATEWAY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
       body: JSON.stringify({ model, messages }),
       signal: controller.signal,
     });
+    if (!res.ok) {
+      throw new Error(`AI Gateway falhou: ${res.status} ${await res.text()}`);
+    }
+    const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    return json.choices?.[0]?.message?.content ?? "";
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
       throw new Error(
@@ -100,11 +110,6 @@ async function requestCompletion(
   } finally {
     clearTimeout(timeout);
   }
-  if (!res.ok) {
-    throw new Error(`AI Gateway falhou: ${res.status} ${await res.text()}`);
-  }
-  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  return json.choices?.[0]?.message?.content ?? "";
 }
 
 export async function callAgent<T>(params: CallAgentParams<T>): Promise<CallAgentResult<T>> {
