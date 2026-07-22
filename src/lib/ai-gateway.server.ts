@@ -12,6 +12,13 @@ const MAX_FILE_BYTES = 15 * 1024 * 1024; // Seção 8: "arquivo ilegível deve s
 // derruba a função inteira com um erro genérico (sem chegar a lançar um
 // Error nosso, então nem aparece mensagem clara pro usuário).
 const MAX_TOTAL_BYTES = 30 * 1024 * 1024;
+// Sem timeout próprio, uma resposta lenta do gateway (comum em chamadas que
+// pedem pra IA raciocinar sobre vários critérios de uma vez, com vários PDFs
+// anexados) trava o processo até a infraestrutura matá-lo à força — sem
+// nenhuma chance de cair no catch/registrar erro (foi o que aconteceu com
+// agent_runs ficando "em_andamento" pra sempre, sem error_message nenhuma).
+// Com o timeout, isso vira um erro tratável, capturado e visível.
+const REQUEST_TIMEOUT_MS = 90_000;
 
 const JSON_ONLY_SUFFIX =
   "\n\nResponda estritamente em JSON válido, sem texto antes ou depois, sem bloco de código markdown. " +
@@ -73,11 +80,26 @@ async function requestCompletion(
   apiKey: string,
   messages: ChatMessage[],
 ): Promise<string> {
-  const res = await fetch(GATEWAY_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
-    body: JSON.stringify({ model, messages }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(GATEWAY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
+      body: JSON.stringify({ model, messages }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(
+        `AI Gateway não respondeu em ${REQUEST_TIMEOUT_MS / 1000}s — tempo limite excedido.`,
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!res.ok) {
     throw new Error(`AI Gateway falhou: ${res.status} ${await res.text()}`);
   }
