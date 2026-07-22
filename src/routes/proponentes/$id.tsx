@@ -36,6 +36,7 @@ import {
   type TipoProponente,
 } from "@/lib/queries/proponents";
 import {
+  useAgentRuns,
   useEvidence,
   useFlags,
   useLatestParecer,
@@ -262,7 +263,7 @@ function ProponentDetail() {
           />
         </TabsContent>
 
-        <TabsContent value="auditoria">
+        <TabsContent value="auditoria" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="font-serif text-lg flex items-center gap-2">
@@ -274,6 +275,21 @@ function ProponentDetail() {
               <p className="text-xs text-muted-foreground mt-4">
                 Toda mutação real deste proponente é gravada em <code>audit_logs</code>, com
                 usuário/ agente, valor anterior e posterior.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-serif text-lg flex items-center gap-2">
+                <Bot className="w-5 h-5 text-primary" /> Execuções dos agentes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AgentRunsList proponentId={id} />
+              <p className="text-xs text-muted-foreground mt-4">
+                Quando "Executar agentes" ou a geração da minuta falha com um erro genérico na tela,
+                a causa real fica registrada aqui.
               </p>
             </CardContent>
           </Card>
@@ -813,6 +829,41 @@ function FlagsList({ proponentId }: { proponentId: string }) {
           <div className="flex-1">
             <div className="font-medium text-xs">{f.tipo}</div>
             <div className="text-xs text-muted-foreground">{f.descricao}</div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const RUN_STATUS_TONE: Record<string, "success" | "warning" | "danger"> = {
+  concluido: "success",
+  em_andamento: "warning",
+  erro: "danger",
+};
+
+function AgentRunsList({ proponentId }: { proponentId: string }) {
+  const { data: runs, isLoading } = useAgentRuns(proponentId);
+  const rows = runs ?? [];
+
+  if (isLoading) return <div className="text-sm text-muted-foreground">Carregando…</div>;
+  if (rows.length === 0) {
+    return <div className="text-sm text-muted-foreground mb-2">Nenhuma execução ainda.</div>;
+  }
+
+  return (
+    <ul className="space-y-3 text-sm mb-4">
+      {rows.map((r) => (
+        <li key={r.id} className="flex gap-4">
+          <div className="text-xs text-muted-foreground font-mono w-32 shrink-0">
+            {new Date(r.started_at).toLocaleString("pt-BR")}
+          </div>
+          <StatusBadge tone={RUN_STATUS_TONE[r.status] ?? "neutral"}>{r.status}</StatusBadge>
+          <div className="flex-1">
+            <div className="font-medium text-xs">{r.agent_name}</div>
+            {r.error_message && (
+              <div className="text-xs text-destructive mt-0.5">{r.error_message}</div>
+            )}
           </div>
         </li>
       ))}

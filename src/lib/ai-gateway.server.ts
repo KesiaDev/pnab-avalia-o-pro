@@ -6,6 +6,12 @@ import type { z } from "zod";
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const DEFAULT_MODEL = "openai/gpt-5.5";
 const MAX_FILE_BYTES = 15 * 1024 * 1024; // Seção 8: "arquivo ilegível deve ser marcado, não interpretado"
+// Limite do TOTAL combinado por chamada — sem isso, um proponente com muitos
+// arquivos grandes (cada um dentro do limite individual) pode montar um
+// payload grande o bastante para estourar memória/tempo do Worker, o que
+// derruba a função inteira com um erro genérico (sem chegar a lançar um
+// Error nosso, então nem aparece mensagem clara pro usuário).
+const MAX_TOTAL_BYTES = 30 * 1024 * 1024;
 
 const JSON_ONLY_SUFFIX =
   "\n\nResponda estritamente em JSON válido, sem texto antes ou depois, sem bloco de código markdown. " +
@@ -85,11 +91,13 @@ export async function callAgent<T>(params: CallAgentParams<T>): Promise<CallAgen
 
   const skippedFiles: string[] = [];
   const fileBlocks: ChatContentBlock[] = [];
+  let totalBytes = 0;
   for (const file of params.files ?? []) {
-    if (file.data.length > MAX_FILE_BYTES) {
+    if (file.data.length > MAX_FILE_BYTES || totalBytes + file.data.length > MAX_TOTAL_BYTES) {
       skippedFiles.push(file.name);
       continue;
     }
+    totalBytes += file.data.length;
     fileBlocks.push({
       type: "file",
       file: {
