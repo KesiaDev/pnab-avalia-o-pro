@@ -105,6 +105,27 @@ export const runAgent3Fn = createServerFn({ method: "POST" })
     return runAgent3(context.supabase, data.proponentId, context.userId);
   });
 
+// Chamado pelo cliente quando a infraestrutura derruba uma etapa (ex.: 502 por
+// memória) antes do catch do agente conseguir finalizar o agent_run. Evita que a
+// auditoria fique com linhas eternamente "em_andamento".
+export const markAgentStepFailedFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { proponentId: string; agentName: string; errorMessage: string }) => data)
+  .handler(async ({ context, data }) => {
+    await requireAdministradora(context.supabase, context.userId);
+    await context.supabase
+      .from("agent_runs")
+      .update({
+        status: "erro",
+        finished_at: new Date().toISOString(),
+        error_message: data.errorMessage.slice(0, 1200),
+      })
+      .eq("proponent_id", data.proponentId)
+      .eq("agent_name", data.agentName)
+      .eq("status", "em_andamento");
+    return { ok: true as const };
+  });
+
 export const runAgent4Fn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: { proponentId: string }) => data)

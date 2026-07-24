@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import {
   finishAgentPipelineFn,
+  markAgentStepFailedFn,
   runAgent3Fn,
   runAgent4Fn,
   runAgent5Fn,
@@ -92,24 +93,42 @@ export function useRunAgentPipeline(proponentId: string) {
   return useMutation({
     mutationFn: async () => {
       const errors: string[] = [];
-      const runStep = async (label: string, fn: () => Promise<unknown>) => {
+      const runStep = async (label: string, agentName: string, fn: () => Promise<unknown>) => {
         try {
           await fn();
         } catch (err) {
-          errors.push(`${label}: ${err instanceof Error ? err.message : String(err)}`);
+          const message = err instanceof Error ? err.message : String(err);
+          errors.push(`${label}: ${message}`);
+          await markAgentStepFailedFn({
+            data: {
+              proponentId,
+              agentName,
+              errorMessage: `Falha capturada pelo cliente ao executar ${label}: ${message}`,
+            },
+          }).catch(() => undefined);
         }
       };
 
       await startAgentPipelineFn({ data: { proponentId } });
-      await runStep("Agente 3 (Identidade)", () => runAgent3Fn({ data: { proponentId } }));
-      await runStep("Agente 4 (Ciclo 1)", () => runAgent4Fn({ data: { proponentId } }));
-      await runStep("Agente 5 (Trajetória)", () => runAgent5Fn({ data: { proponentId } }));
+      await runStep("Agente 3 (Identidade)", "agente_3_identidade", () =>
+        runAgent3Fn({ data: { proponentId } }),
+      );
+      await runStep("Agente 4 (Ciclo 1)", "agente_4_ciclo1", () =>
+        runAgent4Fn({ data: { proponentId } }),
+      );
+      await runStep("Agente 5 (Trajetória)", "agente_5_cronologia", () =>
+        runAgent5Fn({ data: { proponentId } }),
+      );
       for (const criterion of ["B", "C", "D", "E"] as const) {
-        await runStep(`Agente 6 (Mérito ${criterion})`, () =>
-          runAgent6CriterionFn({ data: { proponentId, criterion } }),
+        await runStep(
+          `Agente 6 (Mérito ${criterion})`,
+          `agente_6_merito_${criterion.toLowerCase()}`,
+          () => runAgent6CriterionFn({ data: { proponentId, criterion } }),
         );
       }
-      await runStep("Agente 7 (Bônus)", () => runAgent7Fn({ data: { proponentId } }));
+      await runStep("Agente 7 (Bônus)", "agente_7_bonus", () =>
+        runAgent7Fn({ data: { proponentId } }),
+      );
       await finishAgentPipelineFn({ data: { proponentId } });
 
       if (errors.length > 0) {

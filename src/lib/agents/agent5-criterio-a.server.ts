@@ -7,10 +7,12 @@ import type { Database } from "@/integrations/supabase/types";
 import { callAgent } from "@/lib/ai-gateway.server";
 import {
   checkUrl,
+  describeLimitedProcessing,
   describeLinkCheck,
   fetchProponentFiles,
   finishAgentRun,
   findFileByName,
+  getLimitedProcessingFiles,
   recordAgentOutput,
   startAgentRun,
   TIPOS_MERITO,
@@ -80,6 +82,9 @@ export async function runAgent5(
 
   try {
     const files = await fetchProponentFiles(supabase, proponentId, [...TIPOS_MERITO]);
+    const limitedFiles = getLimitedProcessingFiles(files);
+    const limitedReviewRequired = limitedFiles.length > 0;
+    const limitedNote = limitedReviewRequired ? `${describeLimitedProcessing(files)}. ` : "";
 
     const { data } = await callAgent({
       systemPrompt: SYSTEM_PROMPT,
@@ -99,8 +104,8 @@ export async function runAgent5(
       .update({
         proposed_score: score,
         applied_band: band,
-        justification: data.justification,
-        human_review_required: data.divergencia,
+          justification: `${limitedNote}${data.justification}`,
+          human_review_required: data.divergencia || limitedReviewRequired,
       })
       .eq("proponent_id", proponentId)
       .eq("criterion", "A");
@@ -135,10 +140,20 @@ export async function runAgent5(
       });
     }
 
+    if (limitedReviewRequired) {
+      await supabase.from("flags").insert({
+        proponent_id: proponentId,
+        tipo: "outro",
+        descricao: `Critério A requer revisão humana porque houve processamento limitado. ${describeLimitedProcessing(files)}.`,
+        criado_por_agente: "agente_5",
+      });
+    }
+
     await recordAgentOutput(supabase, run.id, "criterio_a", {
       ...data,
       computed_score: score,
       computed_band: band,
+      processamento_limitado: limitedFiles.map((file) => file.nome),
     });
     await finishAgentRun(supabase, run.id, "concluido");
     return { score, band };

@@ -6,6 +6,26 @@ import type { Database } from "@/integrations/supabase/types";
 import type { AgentFile } from "@/lib/ai-gateway.server";
 
 const BUCKET = "dossies-privados";
+// Limites defensivos antes de baixar do Storage. O gargalo real observado em
+// produção foi o Worker morrer por memória ao transformar PDFs de 40–115MB em
+// Buffer/base64 antes mesmo do callAgent conseguir ignorá-los. Portanto o corte
+// precisa acontecer AQUI, antes do download.
+const MAX_DOWNLOAD_FILE_BYTES = 8 * 1024 * 1024;
+const MAX_DOWNLOAD_TOTAL_BYTES = 10 * 1024 * 1024;
+
+function bytesFromKb(kb: number | null | undefined): number | null {
+  if (typeof kb !== "number" || !Number.isFinite(kb) || kb <= 0) return null;
+  return kb * 1024;
+}
+
+function limitedFilePlaceholder(fileName: string, reason: string): Buffer {
+  return Buffer.from(
+    `ARQUIVO NÃO PROCESSADO AUTOMATICAMENTE: ${fileName}\nMotivo: ${reason}\n` +
+      "Não use este placeholder como prova de mérito, identidade ou bônus. " +
+      "Sinalize revisão humana quando este arquivo puder afetar a avaliação.",
+    "utf8",
+  );
+}
 
 export async function startAgentRun(
   supabase: SupabaseClient<Database>,
@@ -57,6 +77,9 @@ export interface ProponentFile {
   mimeType: string;
   tipoDocumental: Database["public"]["Enums"]["document_type"] | null;
   data: Buffer;
+  tamanhoBytes: number | null;
+  processamentoLimitado: boolean;
+  observacaoProcessamento: string | null;
 }
 
 // Documentos de identidade (identidade/grp/zimbra) só vão para o Agente 3.
@@ -74,19 +97,60 @@ export async function fetchProponentFiles(
   if (error || !files) throw new Error("Não foi possível carregar os arquivos do proponente.");
 
   const result: ProponentFile[] = [];
+  let totalDownloadedBytes = 0;
   for (const file of files) {
     const versions = (file.file_versions ?? []) as Array<{
       id: string;
       versao: number;
       storage_path: string;
+      tamanho_kb: number | null;
     }>;
     const latest = versions.sort((a, b) => b.versao - a.versao)[0];
     const storagePath = latest?.storage_path ?? file.storage_path;
+    const knownSizeBytes = bytesFromKb(latest?.tamanho_kb);
+
+    const pushLimited = (reason: string) => {
+      result.push({
+        id: file.id,
+        versionId: latest?.id ?? null,
+        nome: file.nome,
+        mimeType: "text/plain",
+        tipoDocumental: file.tipo_documental,
+        data: limitedFilePlaceholder(file.nome, reason),
+        tamanhoBytes: knownSizeBytes,
+        processamentoLimitado: true,
+        observacaoProcessamento: reason,
+      });
+    };
+
+    if (knownSizeBytes && knownSizeBytes > MAX_DOWNLOAD_FILE_BYTES) {
+      pushLimited(
+        `arquivo com aproximadamente ${Math.ceil(knownSizeBytes / 1024 / 1024)}MB excede o limite seguro de processamento automático`,
+      );
+      continue;
+    }
+    if (knownSizeBytes && totalDownloadedBytes + knownSizeBytes > MAX_DOWNLOAD_TOTAL_BYTES) {
+      pushLimited("limite total seguro de documentos por chamada atingido");
+      continue;
+    }
+
     const { data: blob, error: downloadError } = await supabase.storage
       .from(BUCKET)
       .download(storagePath);
     if (downloadError || !blob) continue;
-    const buffer = Buffer.from(await blob.arrayBuffer());
+    const arrayBuffer = await blob.arrayBuffer();
+    if (arrayBuffer.byteLength > MAX_DOWNLOAD_FILE_BYTES) {
+      pushLimited(
+        `arquivo com aproximadamente ${Math.ceil(arrayBuffer.byteLength / 1024 / 1024)}MB excede o limite seguro de processamento automático`,
+      );
+      continue;
+    }
+    if (totalDownloadedBytes + arrayBuffer.byteLength > MAX_DOWNLOAD_TOTAL_BYTES) {
+      pushLimited("limite total seguro de documentos por chamada atingido");
+      continue;
+    }
+    const buffer = Buffer.from(arrayBuffer);
+    totalDownloadedBytes += buffer.length;
     result.push({
       id: file.id,
       versionId: latest?.id ?? null,
@@ -94,6 +158,9 @@ export async function fetchProponentFiles(
       mimeType: file.mime_type ?? "application/octet-stream",
       tipoDocumental: file.tipo_documental,
       data: buffer,
+      tamanhoBytes: arrayBuffer.byteLength,
+      processamentoLimitado: false,
+      observacaoProcessamento: null,
     });
   }
   return result;
@@ -106,6 +173,18 @@ export function toAgentFiles(files: ProponentFile[]): AgentFile[] {
 export function findFileByName(files: ProponentFile[], nome: string): ProponentFile | undefined {
   const normalized = nome.trim().toLowerCase();
   return files.find((f) => f.nome.trim().toLowerCase() === normalized);
+}
+
+export function getLimitedProcessingFiles(files: ProponentFile[]): ProponentFile[] {
+  return files.filter((file) => file.processamentoLimitado);
+}
+
+export function describeLimitedProcessing(files: ProponentFile[]): string {
+  const limited = getLimitedProcessingFiles(files);
+  if (limited.length === 0) return "";
+  return `Arquivos não analisados automaticamente por limite técnico: ${limited
+    .map((file) => `${file.nome}${file.observacaoProcessamento ? ` (${file.observacaoProcessamento})` : ""}`)
+    .join("; ")}`;
 }
 
 // Tipos de documento liberados para os agentes de mérito (nunca identidade/grp/zimbra).

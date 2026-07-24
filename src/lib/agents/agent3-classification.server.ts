@@ -9,8 +9,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { callAgent } from "@/lib/ai-gateway.server";
 import {
+  describeLimitedProcessing,
   fetchProponentFiles,
   finishAgentRun,
+  getLimitedProcessingFiles,
   recordAgentOutput,
   startAgentRun,
   toAgentFiles,
@@ -96,6 +98,16 @@ export async function runAgent3(
     if (files.length === 0) {
       await finishAgentRun(supabase, run.id, "concluido");
       return { classificados: 0, aliasesNovos: 0 };
+    }
+
+    const limitedFiles = getLimitedProcessingFiles(files);
+    if (limitedFiles.length > 0) {
+      await supabase.from("flags").insert({
+        proponent_id: proponentId,
+        tipo: "outro",
+        descricao: `Agente 3 executado com processamento limitado. ${describeLimitedProcessing(files)}. A classificação desses arquivos pode exigir conferência manual.`,
+        criado_por_agente: "agente_3",
+      });
     }
 
     const fileList = files.map((f, i) => `Arquivo ${i + 1}: ${f.nome}`).join("\n");
@@ -203,7 +215,10 @@ export async function runAgent3(
       }
     }
 
-    await recordAgentOutput(supabase, run.id, "classificacao", data);
+    await recordAgentOutput(supabase, run.id, "classificacao", {
+      ...data,
+      processamento_limitado: limitedFiles.map((file) => file.nome),
+    });
     await finishAgentRun(supabase, run.id, "concluido");
     return { classificados, aliasesNovos };
   } catch (err) {
