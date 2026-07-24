@@ -11,7 +11,7 @@ const MAX_FILE_BYTES = 15 * 1024 * 1024; // Seção 8: "arquivo ilegível deve s
 // payload grande o bastante para estourar memória/tempo do Worker, o que
 // derruba a função inteira com um erro genérico (sem chegar a lançar um
 // Error nosso, então nem aparece mensagem clara pro usuário).
-const MAX_TOTAL_BYTES = 30 * 1024 * 1024;
+const MAX_TOTAL_BYTES = 12 * 1024 * 1024;
 // Sem timeout próprio, uma resposta lenta do gateway (comum em chamadas que
 // pedem pra IA raciocinar sobre vários critérios de uma vez, com vários PDFs
 // anexados) trava o processo até a infraestrutura matá-lo à força — sem
