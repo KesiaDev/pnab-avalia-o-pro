@@ -130,6 +130,7 @@ export async function runAgent3(
       const file = files[item.indice - 1];
       if (!file) continue;
       indicesClassificados.add(item.indice);
+      if (file.processamentoLimitado) continue;
       await supabase.from("document_classifications").insert({
         file_id: file.id,
         file_version_id: file.versionId,
