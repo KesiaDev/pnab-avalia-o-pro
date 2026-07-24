@@ -1,7 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
-import { runAgentPipeline } from "@/lib/agent-actions";
+import {
+  finishAgentPipelineFn,
+  runAgent3Fn,
+  runAgent4Fn,
+  runAgent5Fn,
+  runAgent6CriterionFn,
+  runAgent7Fn,
+  startAgentPipelineFn,
+} from "@/lib/agent-actions";
 
 export type EvidenceRow = Tables<"evidence">;
 export type ParecerRow = Tables<"pareceres">;
@@ -74,11 +82,42 @@ export function useAgentRuns(proponentId: string) {
   });
 }
 
+// Executa cada agente numa server function separada, sequencialmente. Cada
+// chamada é um Worker novo com heap limpo — resolve o 502 "Worker exceeded
+// memory limit" que estourava quando 5 agentes rodavam no mesmo processo,
+// cada um carregando todos os PDFs do proponente em base64. Falhas parciais
+// são coletadas mas não interrompem os próximos agentes.
 export function useRunAgentPipeline(proponentId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async () => runAgentPipeline({ data: { proponentId } }),
-    onSuccess: () => {
+    mutationFn: async () => {
+      const errors: string[] = [];
+      const runStep = async (label: string, fn: () => Promise<unknown>) => {
+        try {
+          await fn();
+        } catch (err) {
+          errors.push(`${label}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      };
+
+      await startAgentPipelineFn({ data: { proponentId } });
+      await runStep("Agente 3 (Identidade)", () => runAgent3Fn({ data: { proponentId } }));
+      await runStep("Agente 4 (Ciclo 1)", () => runAgent4Fn({ data: { proponentId } }));
+      await runStep("Agente 5 (Trajetória)", () => runAgent5Fn({ data: { proponentId } }));
+      for (const criterion of ["B", "C", "D", "E"] as const) {
+        await runStep(`Agente 6 (Mérito ${criterion})`, () =>
+          runAgent6CriterionFn({ data: { proponentId, criterion } }),
+        );
+      }
+      await runStep("Agente 7 (Bônus)", () => runAgent7Fn({ data: { proponentId } }));
+      await finishAgentPipelineFn({ data: { proponentId } });
+
+      if (errors.length > 0) {
+        throw new Error(`Concluído com falhas parciais:\n- ${errors.join("\n- ")}`);
+      }
+      return { ok: true as const };
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["criterion_scores", proponentId] });
       queryClient.invalidateQueries({ queryKey: ["proponents", proponentId] });
       queryClient.invalidateQueries({ queryKey: ["proponents"] });
@@ -90,3 +129,4 @@ export function useRunAgentPipeline(proponentId: string) {
     },
   });
 }
+
