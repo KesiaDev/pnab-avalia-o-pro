@@ -72,14 +72,23 @@ const criterionResultSchema = z.object({
   evidencias: z.array(evidenceItemSchema),
 });
 
-const responseSchema = z.object({
-  B: criterionResultSchema,
-  C: criterionResultSchema,
-  D: criterionResultSchema,
-  E: criterionResultSchema,
-});
-
 const MAX_SCORE: Record<"B" | "C" | "D" | "E", number> = { B: 50, C: 10, D: 10, E: 10 };
+
+const CRITERION_INSTRUCTIONS: Record<"B" | "C" | "D" | "E", string> = {
+  B: `Avalie APENAS o critério B (0 a 50). Responda em JSON no formato do critério pedido.`,
+  C: `Avalie APENAS o critério C (0 a 10). Responda em JSON no formato do critério pedido.`,
+  D: `Avalie APENAS o critério D (0 a 10). Responda em JSON no formato do critério pedido.`,
+  E: `Avalie APENAS o critério E (0 a 10). Responda em JSON no formato do critério pedido.`,
+};
+
+function buildUserPrompt(criterion: "B" | "C" | "D" | "E"): string {
+  const max = MAX_SCORE[criterion];
+  return `${CRITERION_INSTRUCTIONS[criterion]}
+
+Estrutura obrigatória da resposta:
+{"proposed_score": 0-${max}, "applied_band": "...", "justification": "...", "human_review_required": false,
+ "evidencias": [{"arquivo":"...","pagina_inicial":1,"pagina_final":1,"descricao_factual":"...","trecho_relevante":"...","ano_da_acao":2020,"local":"...","url":null,"robustez":"alta|media|declaratoria"}]}`;
+}
 
 export async function runAgent6(
   supabase: SupabaseClient<Database>,
@@ -95,62 +104,99 @@ export async function runAgent6(
 
   try {
     const files = await fetchProponentFiles(supabase, proponentId, [...TIPOS_MERITO]);
-
-    const { data } = await callAgent({
-      systemPrompt: SYSTEM_PROMPT,
-      userPrompt: `Analise os documentos anexados e avalie os critérios B, C, D e E. Responda em JSON:
-{"B": {"proposed_score": 0-50, "applied_band": "...", "justification": "...", "human_review_required": false,
- "evidencias": [{"arquivo":"...","pagina_inicial":1,"pagina_final":1,"descricao_factual":"...","trecho_relevante":"...","ano_da_acao":2020,"local":"...","robustez":"alta|media|declaratoria"}]},
- "C": {... mesma estrutura, 0-10}, "D": {... mesma estrutura, 0-10}, "E": {... mesma estrutura, 0-10}}`,
-      files: toAgentFiles(files),
-      responseSchema,
-    });
+    const agentFiles = toAgentFiles(files);
 
     const scores: Record<"B" | "C" | "D" | "E", number> = { B: 0, C: 0, D: 0, E: 0 };
+    const perCriterionErrors: string[] = [];
+    const combinedOutput: Record<string, unknown> = {};
 
+    // Uma chamada por critério: payload menor, prompt focado e uma trava em
+    // um critério não impede os outros de rodarem. Cada chamada tem seu
+    // próprio timeout+retry no ai-gateway.
     for (const criterion of ["B", "C", "D", "E"] as const) {
-      const result = data[criterion];
-      const clamped = Math.max(
-        0,
-        Math.min(MAX_SCORE[criterion], Math.round(result.proposed_score)),
-      );
-      scores[criterion] = clamped;
-
-      await supabase
-        .from("criterion_scores")
-        .update({
-          proposed_score: clamped,
-          applied_band: result.applied_band,
-          justification: result.justification,
-          human_review_required: result.human_review_required || clamped !== result.proposed_score,
-        })
-        .eq("proponent_id", proponentId)
-        .eq("criterion", criterion);
-
-      for (const ev of result.evidencias) {
-        const file = findFileByName(files, ev.arquivo);
-        const observacoes = ev.url ? describeLinkCheck(await checkUrl(ev.url)) : null;
-        await supabase.from("evidence").insert({
-          proponent_id: proponentId,
-          criterion,
-          file_id: file?.id ?? null,
-          file_version_id: file?.versionId ?? null,
-          tipo_documental: file?.tipoDocumental ?? null,
-          pagina_inicial: ev.pagina_inicial,
-          pagina_final: ev.pagina_final,
-          descricao_factual: ev.descricao_factual,
-          trecho_relevante: ev.trecho_relevante,
-          ano_da_acao: ev.ano_da_acao,
-          local: ev.local,
-          observacoes,
-          robustez: ev.robustez,
-          criado_por_agente: "agente_6",
+      try {
+        const { data } = await callAgent({
+          systemPrompt: SYSTEM_PROMPT,
+          userPrompt: buildUserPrompt(criterion),
+          files: agentFiles,
+          responseSchema: criterionResultSchema,
         });
+
+        const clamped = Math.max(
+          0,
+          Math.min(MAX_SCORE[criterion], Math.round(data.proposed_score)),
+        );
+        scores[criterion] = clamped;
+        combinedOutput[criterion] = data;
+
+        await supabase
+          .from("criterion_scores")
+          .update({
+            proposed_score: clamped,
+            applied_band: data.applied_band,
+            justification: data.justification,
+            human_review_required: data.human_review_required || clamped !== data.proposed_score,
+          })
+          .eq("proponent_id", proponentId)
+          .eq("criterion", criterion);
+
+        for (const ev of data.evidencias) {
+          const file = findFileByName(files, ev.arquivo);
+          const observacoes = ev.url ? describeLinkCheck(await checkUrl(ev.url)) : null;
+          await supabase.from("evidence").insert({
+            proponent_id: proponentId,
+            criterion,
+            file_id: file?.id ?? null,
+            file_version_id: file?.versionId ?? null,
+            tipo_documental: file?.tipoDocumental ?? null,
+            pagina_inicial: ev.pagina_inicial,
+            pagina_final: ev.pagina_final,
+            descricao_factual: ev.descricao_factual,
+            trecho_relevante: ev.trecho_relevante,
+            ano_da_acao: ev.ano_da_acao,
+            local: ev.local,
+            observacoes,
+            robustez: ev.robustez,
+            criado_por_agente: "agente_6",
+          });
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        perCriterionErrors.push(`Critério ${criterion}: ${msg}`);
+        combinedOutput[criterion] = { error: msg };
+        // Marca o critério como pendente de revisão humana ao invés de deixar zero silencioso.
+        await supabase
+          .from("criterion_scores")
+          .update({
+            proposed_score: 0,
+            applied_band: "não avaliado (falha do agente)",
+            justification: `Falha automática: ${msg}. Avaliar manualmente.`,
+            human_review_required: true,
+          })
+          .eq("proponent_id", proponentId)
+          .eq("criterion", criterion);
       }
     }
 
-    await recordAgentOutput(supabase, run.id, "merito_b_e", { ...data, computed_scores: scores });
-    await finishAgentRun(supabase, run.id, "concluido");
+    await recordAgentOutput(supabase, run.id, "merito_b_e", {
+      ...combinedOutput,
+      computed_scores: scores,
+      errors: perCriterionErrors,
+    });
+
+    if (perCriterionErrors.length === 4) {
+      await finishAgentRun(supabase, run.id, "erro", perCriterionErrors.join(" | "));
+      throw new Error(`Todos os critérios de mérito falharam: ${perCriterionErrors.join(" | ")}`);
+    }
+
+    await finishAgentRun(
+      supabase,
+      run.id,
+      "concluido",
+      perCriterionErrors.length
+        ? `Concluído com falhas parciais: ${perCriterionErrors.join(" | ")}`
+        : undefined,
+    );
     return scores;
   } catch (err) {
     await finishAgentRun(
