@@ -79,19 +79,13 @@ function safeJsonParse(text: string): unknown {
   }
 }
 
-async function requestCompletion(
+async function requestCompletionOnce(
   model: string,
   apiKey: string,
   messages: ChatMessage[],
 ): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  // O timeout precisa cobrir a leitura do corpo da resposta (res.json()), não
-  // só o fetch() inicial — um `finally` logo após o fetch resolver limparia o
-  // timer assim que os cabeçalhos chegassem, deixando a leitura do corpo (onde
-  // o JSON grande é de fato transmitido) sem nenhuma proteção. Foi exatamente
-  // essa lacuna que deixou uma trava silenciosa acontecer mesmo com o timeout
-  // já em produção.
   try {
     const res = await fetch(GATEWAY_URL, {
       method: "POST",
@@ -100,20 +94,47 @@ async function requestCompletion(
       signal: controller.signal,
     });
     if (!res.ok) {
-      throw new Error(`AI Gateway falhou: ${res.status} ${await res.text()}`);
+      const body = await res.text();
+      const err = new Error(`AI Gateway falhou: ${res.status} ${body}`) as Error & {
+        status?: number;
+      };
+      err.status = res.status;
+      throw err;
     }
     const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
     return json.choices?.[0]?.message?.content ?? "";
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
-      throw new Error(
+      const timeoutErr = new Error(
         `AI Gateway não respondeu em ${REQUEST_TIMEOUT_MS / 1000}s — tempo limite excedido.`,
-      );
+      ) as Error & { retryable?: boolean };
+      timeoutErr.retryable = true;
+      throw timeoutErr;
     }
     throw err;
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function requestCompletion(
+  model: string,
+  apiKey: string,
+  messages: ChatMessage[],
+): Promise<string> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await requestCompletionOnce(model, apiKey, messages);
+    } catch (err) {
+      lastErr = err;
+      const e = err as Error & { status?: number; retryable?: boolean };
+      const retryable = e.retryable || e.status === 429 || (e.status ?? 0) >= 500;
+      if (!retryable || attempt === MAX_RETRIES) throw err;
+      await new Promise((r) => setTimeout(r, RETRY_BACKOFF_MS * (attempt + 1)));
+    }
+  }
+  throw lastErr;
 }
 
 export async function callAgent<T>(params: CallAgentParams<T>): Promise<CallAgentResult<T>> {
