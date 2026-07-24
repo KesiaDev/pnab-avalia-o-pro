@@ -18,7 +18,11 @@ const MAX_TOTAL_BYTES = 30 * 1024 * 1024;
 // nenhuma chance de cair no catch/registrar erro (foi o que aconteceu com
 // agent_runs ficando "em_andamento" pra sempre, sem error_message nenhuma).
 // Com o timeout, isso vira um erro tratável, capturado e visível.
-const REQUEST_TIMEOUT_MS = 90_000;
+const REQUEST_TIMEOUT_MS = 180_000;
+// Uma nova tentativa em caso de timeout ou 5xx transitório — o gateway
+// costuma responder rápido no retry quando o modelo travou na primeira vez.
+const MAX_RETRIES = 1;
+const RETRY_BACKOFF_MS = 2_000;
 
 const JSON_ONLY_SUFFIX =
   "\n\nResponda estritamente em JSON válido, sem texto antes ou depois, sem bloco de código markdown. " +
