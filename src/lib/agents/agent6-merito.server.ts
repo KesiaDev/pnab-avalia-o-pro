@@ -7,10 +7,12 @@ import type { Database } from "@/integrations/supabase/types";
 import { callAgent } from "@/lib/ai-gateway.server";
 import {
   checkUrl,
+  describeLimitedProcessing,
   describeLinkCheck,
   fetchProponentFiles,
   finishAgentRun,
   findFileByName,
+  getLimitedProcessingFiles,
   recordAgentOutput,
   startAgentRun,
   TIPOS_MERITO,
@@ -110,6 +112,9 @@ export async function runAgent6Criterion(
 
   try {
     const files = await fetchProponentFiles(supabase, proponentId, [...TIPOS_MERITO]);
+    const limitedFiles = getLimitedProcessingFiles(files);
+    const limitedReviewRequired = limitedFiles.length > 0;
+    const limitedNote = limitedReviewRequired ? `${describeLimitedProcessing(files)}. ` : "";
     const agentFiles = toAgentFiles(files);
 
     const { data } = await callAgent({
@@ -126,8 +131,9 @@ export async function runAgent6Criterion(
       .update({
         proposed_score: clamped,
         applied_band: data.applied_band,
-        justification: data.justification,
-        human_review_required: data.human_review_required || clamped !== data.proposed_score,
+        justification: `${limitedNote}${data.justification}`,
+        human_review_required:
+          data.human_review_required || clamped !== data.proposed_score || limitedReviewRequired,
       })
       .eq("proponent_id", proponentId)
       .eq("criterion", criterion);
@@ -153,7 +159,19 @@ export async function runAgent6Criterion(
       });
     }
 
-    await recordAgentOutput(supabase, run.id, `merito_${criterion.toLowerCase()}`, data);
+    if (limitedReviewRequired) {
+      await supabase.from("flags").insert({
+        proponent_id: proponentId,
+        tipo: "outro",
+        descricao: `Critério ${criterion} requer revisão humana porque houve processamento limitado. ${describeLimitedProcessing(files)}.`,
+        criado_por_agente: "agente_6",
+      });
+    }
+
+    await recordAgentOutput(supabase, run.id, `merito_${criterion.toLowerCase()}`, {
+      ...data,
+      processamento_limitado: limitedFiles.map((file) => file.nome),
+    });
     await finishAgentRun(supabase, run.id, "concluido");
     return { criterion, score: clamped };
   } catch (err) {

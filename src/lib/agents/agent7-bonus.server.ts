@@ -7,10 +7,12 @@ import type { Database } from "@/integrations/supabase/types";
 import { callAgent } from "@/lib/ai-gateway.server";
 import {
   checkUrl,
+  describeLimitedProcessing,
   describeLinkCheck,
   fetchProponentFiles,
   finishAgentRun,
   findFileByName,
+  getLimitedProcessingFiles,
   recordAgentOutput,
   startAgentRun,
   TIPOS_MERITO,
@@ -89,6 +91,9 @@ export async function runAgent7(
 
   try {
     const files = await fetchProponentFiles(supabase, proponentId, [...TIPOS_MERITO]);
+    const limitedFiles = getLimitedProcessingFiles(files);
+    const limitedReviewRequired = limitedFiles.length > 0;
+    const limitedNote = limitedReviewRequired ? `${describeLimitedProcessing(files)}. ` : "";
 
     const { data } = await callAgent({
       systemPrompt: SYSTEM_PROMPT,
@@ -112,8 +117,8 @@ export async function runAgent7(
         .update({
           proposed_score: score,
           applied_band: score === 5 ? "comprovado" : "não comprovado",
-          justification: result.justification,
-          human_review_required: result.human_review_required,
+          justification: `${limitedNote}${result.justification}`,
+          human_review_required: result.human_review_required || limitedReviewRequired,
         })
         .eq("proponent_id", proponentId)
         .eq("criterion", criterion);
@@ -138,9 +143,22 @@ export async function runAgent7(
           criado_por_agente: "agente_7",
         });
       }
+
+      if (limitedReviewRequired) {
+        await supabase.from("flags").insert({
+          proponent_id: proponentId,
+          tipo: "outro",
+          descricao: `Critério ${criterion} requer revisão humana porque houve processamento limitado. ${describeLimitedProcessing(files)}.`,
+          criado_por_agente: "agente_7",
+        });
+      }
     }
 
-    await recordAgentOutput(supabase, run.id, "bonus_f_g", { ...data, computed_scores: scores });
+    await recordAgentOutput(supabase, run.id, "bonus_f_g", {
+      ...data,
+      computed_scores: scores,
+      processamento_limitado: limitedFiles.map((file) => file.nome),
+    });
     await finishAgentRun(supabase, run.id, "concluido");
     return scores;
   } catch (err) {
